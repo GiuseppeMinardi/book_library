@@ -75,6 +75,7 @@ class Database:
                     birth_date TEXT,
                     death_date TEXT,
                     nationality TEXT,
+                    sex TEXT,
                     bio TEXT,
                     author_link TEXT
                 );
@@ -229,3 +230,164 @@ class Database:
             if self.conn:
                 self.conn.rollback()
             return None
+
+    def add_author(
+        self,
+        author_id: str,
+        name: str,
+        birth_date: Optional[str] = None,
+        death_date: Optional[str] = None,
+        nationality: Optional[str] = None,
+        sex: Optional[str] = None,
+        summary: Optional[str] = None,
+        author_link: Optional[str] = None,
+    ) -> Optional[str]:
+        """
+        Add or update an author in the database.
+
+        Parameters
+        ----------
+        author_id : str
+            The unique identifier for the author. If None, a new UUID will be generated.
+        name : str
+            The name of the author.
+        birth_date : Optional[str], optional
+            The birth date of the author, by default None.
+        death_date : Optional[str], optional
+            The death date of the author, by default None.
+        nationality : Optional[str], optional
+            The nationality of the author, by default None.
+        sex : Optional[str], optional
+            The sex of the author, by default None.
+        summary : Optional[str], optional
+            A short biography or summary about the author, by default None.
+        author_link : Optional[str], optional
+            A link to more information about the author, by default None.
+
+        Returns
+        -------
+        Optional[str]
+            The ID of the added or updated author, or None if the operation failed.
+        """
+        if not self.conn:
+            print("Cannot add author, no database connection.")
+            return None
+
+        try:
+            cursor = self.conn.cursor()
+            author_id = author_id or str(uuid.uuid4())
+
+            existing_id = self._find_existing_author(
+                cursor=cursor, author_id=author_id, name=name
+            )
+            if existing_id:
+                self._update_author(
+                    cursor=cursor,
+                    author_id=existing_id,
+                    name=name,
+                    birth_date=birth_date,
+                    death_date=death_date,
+                    nationality=nationality,
+                    sex=sex,
+                    summary=summary,
+                    author_link=author_link,
+                )
+                return existing_id
+
+            self._insert_new_author(
+                cursor=cursor,
+                author_id=author_id,
+                name=name,
+                birth_date=birth_date,
+                death_date=death_date,
+                nationality=nationality,
+                sex=sex,
+                summary=summary,
+                author_link=author_link,
+            )
+            return author_id
+
+        except sqlite3.IntegrityError as e:
+            print(f"Integrity error adding/updating author: {e}")
+            if self.conn:
+                self.conn.rollback()
+            return None
+        except sqlite3.Error as e:
+            print(f"Error adding/updating author: {e}")
+            if self.conn:
+                self.conn.rollback()
+            return None
+
+    def _find_existing_author(self, cursor, author_id: str, name: str) -> Optional[str]:
+        cursor.execute("SELECT id FROM authors WHERE id = ?", (author_id,))
+        row = cursor.fetchone()
+        if row:
+            return row[0]
+
+        cursor.execute("SELECT id FROM authors WHERE name = ?", (name,))
+        row = cursor.fetchone()
+        return row[0] if row else None
+
+    def _update_author(
+        self,
+        cursor,
+        author_id: str,
+        name: Optional[str],
+        birth_date: Optional[str],
+        death_date: Optional[str],
+        nationality: Optional[str],
+        sex: Optional[str],
+        summary: Optional[str],
+        author_link: Optional[str],
+    ):
+        fields = {
+            k: v
+            for k, v in {
+                "name": name,
+                "birth_date": birth_date,
+                "death_date": death_date,
+                "nationality": nationality,
+                "sex": sex,
+                "bio": summary,
+                "author_link": author_link,
+            }.items()
+            if v is not None
+        }
+
+        if fields:
+            set_clause = ", ".join([f"{k} = ?" for k in fields])
+            params = list(fields.values()) + [author_id]
+            sql = f"UPDATE authors SET {set_clause} WHERE id = ?"
+            cursor.execute(sql, tuple(params))
+            self.conn.commit()
+            print(f"Updated author {author_id} ({name})")
+        else:
+            print(f"No new data provided to update author {author_id} ({name})")
+
+    def _insert_new_author(
+        self,
+        cursor,
+        author_id: str,
+        name: str,
+        birth_date: Optional[str],
+        death_date: Optional[str],
+        nationality: Optional[str],
+        sex: Optional[str],
+        summary: Optional[str],
+        author_link: Optional[str],
+    ):
+        cursor.execute(
+            "INSERT INTO authors (id, name, birth_date, death_date, nationality, sex, bio, author_link) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                author_id,
+                name,
+                birth_date,
+                death_date,
+                nationality,
+                sex,
+                summary,
+                author_link,
+            ),
+        )
+        self.conn.commit()
+        print(f"Inserted new author {author_id} ({name})")
