@@ -1,2 +1,1 @@
-SELECT * from books;
-SELECT * from authors;
+select * from authors

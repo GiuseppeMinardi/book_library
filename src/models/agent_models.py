@@ -21,7 +21,7 @@ class AuthorInfo(BaseModel):
         The sex of the author, either "M" for male or "F" for female.
     """
 
-    name: Optional[str] = Field(None, description="Name of the author")
+    name: str = Field(..., description="Name of the author")
     birth_date: Optional[str] = Field(
         None, description="Birth date of the author YYYY-MM-DD"
     )
@@ -29,4 +29,6 @@ class AuthorInfo(BaseModel):
         None, description="Death date of the author, if applicable YYYY-MM-DD"
     )
     nationality: Optional[str] = Field(None, description="Nationality of the author")
+    biography: Optional[str] = Field(..., description="Short biography of the author")
     sex: Optional[Literal["M", "F"]] = Field(None, description="Sex of the author")
+    url: Optional[str] = Field(None, description="URL of the author's Wikipedia page")

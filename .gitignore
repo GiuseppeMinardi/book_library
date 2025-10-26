@@ -1,0 +1,23 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+.env*
+
+data/*/*.json
+
+*.db
+
+uv.lock
+*.log
+populate_authors.py
+test_agenti.py
+src/database/sql/query.sql
+src/database/sql/query1.sql

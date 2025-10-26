@@ -1,58 +1,102 @@
-import json
-from pathlib import Path
-
-from dotenv import load_dotenv
+import argparse
+import sys
+from typing import List
 
 import pandas as pd
 
-from src.book_api import GoogleBookRetriever
-from src.database.db import Database
+from src.logger import logger
 from src.models.google_sheet import GoogleSheetSettings
+from src.populate_authors import populate_authors
+from src.populate_books import add_book_from_isbn, add_books_from_isbn_list
 
-load_dotenv()
 
-db = Database()
-sheet_settings = GoogleSheetSettings()
+def read_isbns_from_sheet() -> List[str]:
+    """Read the Google Sheet configured via env/.env and return a list of unique ISBNs.
 
-data_folder = Path(__file__).parent.joinpath("data", "isbn_response")
-data_folder.mkdir(parents=True, exist_ok=True)
+    Assumes the first column of the sheet contains the ISBN values.
+    """
+    try:
+        sheet_settings = GoogleSheetSettings()
+    except Exception as e:
+        logger.error(f"Error loading Google Sheet settings: {e}")
+        return []
 
-retriever = GoogleBookRetriever()
-# 3. Construct the URL
-url = f"https://docs.google.com/spreadsheets/d/{sheet_settings.sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_settings.sheet_name}"
+    url = (
+        f"https://docs.google.com/spreadsheets/d/{sheet_settings.sheet_id}"
+        f"/gviz/tq?tqx=out:csv&sheet={sheet_settings.sheet_name}"
+    )
 
-# 4. Read into a DataFrame
-isbn_list = (
-    pd.read_csv(filepath_or_buffer=url, dtype={"ISBN": "string"}).iloc[:, 0].tolist()
-)
+    try:
+        df = pd.read_csv(filepath_or_buffer=url, dtype={"ISBN": "string"})
+    except Exception as e:
+        logger.error(f"Error reading Google Sheet CSV: {e}")
+        return []
 
-with db:
-    res = db.run_query("Select isbn from books", as_dataframe=False)
-    if res is not None and isinstance(res, list):
-        isbn_in_df = [row.get("isbn") for row in res]
+    if df.shape[1] == 0:
+        return []
 
-    for isbn in isbn_list:
-        if isbn in isbn_in_df:
-            print(f"ISBN {isbn} already in database. Skipping.")
-            continue
-        try:
-            book_data = retriever.get_book_info(isbn)
-            flat_book_data = retriever.flatten_response(book_data, isbn=isbn)
-            db.add_book(flat_book_data)
-            with data_folder.joinpath(f"{isbn}.json").open("w", encoding="utf-8") as f:
-                json.dump(book_data.model_dump(), f, ensure_ascii=False, indent=4)
-        except (ValueError, IndexError) as e:
-            print(f"Error retrieving data for ISBN {isbn}: {e}")
-            continue
+    # take first column as ISBN column, drop NA, strip and deduplicate
+    isbns = (
+        df.iloc[:, 0]
+        .dropna()
+        .astype(str)
+        .str.strip()
+        .loc[lambda s: s != ""]
+        .unique()
+        .tolist()
+    )
 
-#
-# for isbn in isbn_list:
-#
-#     try:
-#         book_data = retriever.get_book_info(isbn).model_dump()
-#     except (ValueError, IndexError) as e:
-#         print(f"Error retrieving data for ISBN {isbn}: {e}")
-#         continue
-#     with data_folder.joinpath(f"{isbn}.json").open("w", encoding="utf-8") as f:
-#         json.dump(book_data, f, ensure_ascii=False, indent=4)
-# #
+    return isbns
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Command line tool for dealing with the project"
+    )
+
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument(
+        "--from-sheet",
+        action="store_true",
+        help="Read ISBNs from configured Google Sheet and add books to database",
+    )
+    group.add_argument(
+        "--isbn",
+        type=str,
+        metavar="ISBN",
+        help="Add a single book to the database by ISBN",
+    )
+    group.add_argument(
+        "--fill-authors",
+        action="store_true",
+        help="Populate missing author information in the database",
+    )
+
+    args = parser.parse_args()
+
+    if args.from_sheet:
+        isbns = read_isbns_from_sheet()
+        if not isbns:
+            print("No ISBNs found in sheet or failed to read sheet. Exiting.")
+            sys.exit(1)
+        logger.info(f"Found {len(isbns)} unique ISBN(s) in sheet. Processing...")
+        add_books_from_isbn_list(isbns)
+        logger.info("Finished processing sheet ISBNs.")
+        return
+
+    if args.isbn:
+        isbn = args.isbn.strip()
+        if isbn == "":
+            logger.warning("Empty ISBN provided.")
+            sys.exit(1)
+        logger.info(f"Processing ISBN: {isbn}")
+        add_book_from_isbn(isbn)
+        return
+
+    if args.fill_authors:
+        populate_authors()
+        return
+
+
+if __name__ == "__main__":
+    main()

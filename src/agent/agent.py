@@ -1,79 +1,61 @@
-from abc import ABC, abstractmethod
-from pathlib import Path
-
+from pydantic_ai import Agent
+from pydantic_ai.common_tools.duckduckgo import duckduckgo_search_tool
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.providers.ollama import OllamaProvider
 
 from ..models.agent import AgentConfig
+from ..models.agent_models import AuthorInfo
+from .prompts import AUTHOR_INFO_PROMPT, BOOK_SUMMARY_PROMPT
 
-agent_config = AgentConfig()
+_agent_config = AgentConfig()
 
-class AgentGenerator(ABC):
+def _get_model():
     """
-    An abstract base class for creating agents that interact with different AI models.
+    Retrieve the appropriate model based on the agent configuration.
 
-    Methods
+    Returns
     -------
-    get_model() -> Union[AnthropicModel, OpenAIChatModel]
-        Static method to retrieve the appropriate model based on the agent configuration.
-    generate_agent(prompt_path: Path, **pydantic_agent_kwargs)
-        Abstract method to be implemented by subclasses for generating agents.
+    Union[AnthropicModel, OpenAIChatModel]
+        The model instance corresponding to the configured provider.
+
+    Raises
+    ------
+    ValueError
+        If the provider specified in the configuration is unsupported.
     """
+    match _agent_config.provider:
+        case "anthropic":
+            provider = AnthropicProvider(
+                api_key=_agent_config.api_key.get_secret_value()
+                if _agent_config.api_key
+                else None,
+            )
+            return AnthropicModel(
+                model_name=_agent_config.model_name,
+                provider=provider,
+            )
+        case "ollama":
+            provider = OllamaProvider(base_url=_agent_config.provider_url)
+            return OpenAIChatModel(
+                model_name=_agent_config.model_name,
+                provider=provider,
+            )
+        case _:
+            raise ValueError(f"Unsupported provider: {_agent_config.provider}")
 
-    @staticmethod
-    def get_model():
-        """
-        Retrieve the appropriate model based on the agent configuration.
+_model = _get_model()
 
-        Returns
-        -------
-        Union[AnthropicModel, OpenAIChatModel]
-            The model instance corresponding to the configured provider.
+author_info_agent: Agent[None, AuthorInfo] = Agent(
+    model=_get_model(),
+    tools=[duckduckgo_search_tool()],
+    system_prompt=AUTHOR_INFO_PROMPT,
+    output_type=AuthorInfo,
+)
 
-        Raises
-        ------
-        ValueError
-            If the provider specified in the configuration is unsupported.
-        """
-        match agent_config.provider:
-            case "anthropic":
-                provider = AnthropicProvider(
-                    api_key=agent_config.api_key.get_secret_value() if agent_config.api_key else None,
-                    base_url=agent_config.provider_url
-                )
-                return AnthropicModel(
-                    model_name=agent_config.model_name,
-                    provider=provider,
-                )
-            case "ollama":
-
-                provider = OllamaProvider(
-                    base_url=agent_config.provider_url
-                )
-                return OpenAIChatModel(
-                    model_name=agent_config.model_name,
-                    provider=provider,
-                )
-            case _:
-                raise ValueError(f"Unsupported provider: {agent_config.provider}")
-
-    @abstractmethod
-    def generate_agent(self, prompt_path: Path, **pydantic_agent_kwargs):
-        """
-        Generate an agent using the provided prompt file and additional keyword arguments.
-
-        Parameters
-        ----------
-        prompt_path : Path
-            The file path to the prompt used for generating the agent.
-        **pydantic_agent_kwargs : dict
-            Additional keyword arguments for configuring the agent.
-
-        Raises
-        ------
-        NotImplementedError
-            If the method is not implemented in a subclass.
-        """
-        pass
+book_summary_agent: Agent[None, str] = Agent(
+    model=_model,
+    tools=[duckduckgo_search_tool()],
+    system_prompt=BOOK_SUMMARY_PROMPT,
+)

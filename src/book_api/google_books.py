@@ -122,7 +122,9 @@ class GoogleBookRetriever:
             raise ValueError(f"Error fetching data: {response.status_code}")
     
     @staticmethod
-    def flatten_response(full_response: GoogleBooksResponse, isbn: str) -> dict:
+    def flatten_response(
+        full_response: GoogleBooksResponse, isbn: str
+    ) -> GoogleBookSlimResponse:
         slim_response = {
             "kind": full_response.kind,
             "title": full_response.volumeInfo.title,

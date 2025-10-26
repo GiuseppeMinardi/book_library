@@ -5,10 +5,13 @@ from typing import List, Optional, Union
 
 import pandas as pd
 
+from ..logger import logger
 from ..models.google_books import GoogleBookSlimResponse
 
 
 class Database:
+    """Class to connect and handle the sl=qllite database."""
+
     def __init__(self, db_location: Path | None = None):
         if db_location is None:
             self.db_location = Path(__file__).parent.joinpath("books.db")
@@ -22,31 +25,37 @@ class Database:
 
     def create_db(self):
         """Create the database file and initializes the tables."""
-        print(f"Creating new database at {self.db_location}")
+        logger.info(f"Creating new database at {self.db_location}")
         # The context manager (`with self`) handles connect/disconnect
         with self:
             self.create_tables()
 
     def connect(self):
+        """Connect to the Database."""
         try:
+            logger.info(f"Connecting to database at {self.db_location}")
             self.conn = sqlite3.connect(self.db_location)
         except sqlite3.Error as e:
             raise e
 
     def disconnect(self):
+        """Disconnect from the database."""
         if self.conn:
             self.conn.close()
             self.conn = None
-            print("Database connection closed.")
+            logger.info("Database connection closed.")
 
     def __enter__(self):
+        """Enter the connection."""
         self.connect()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit the connection."""
         self.disconnect()
 
     def create_tables(self):
+        """Create the necessary tables in the database."""
         # Connection is now managed by the context manager.
         try:
             cursor = self.conn.cursor()
@@ -111,15 +120,38 @@ class Database:
                 );
             """)
             self.conn.commit()
-            print("Tables created successfully.")
+            logger.info("Tables created successfully.")
         except sqlite3.Error as e:
-            print(f"Error creating tables: {e}")
+            logger.info(f"Error creating tables: {e}")
 
     def run_query(
         self, query: str, params: tuple = (), as_dataframe: bool = False
     ) -> Union[pd.DataFrame, List[dict], None]:
+        """
+        Execute a SQL query on the database.
+
+        Parameters
+        ----------
+        query : str
+            The SQL query to execute.
+        params : tuple, optional
+            The parameters to bind to the query, by default ().
+        as_dataframe : bool, optional
+            If True, return the results as a pandas DataFrame. Otherwise, return a list of dictionaries, by default False.
+
+        Returns
+        -------
+        Union[pd.DataFrame, List[dict], None]
+            The query results as a DataFrame or a list of dictionaries for SELECT queries.
+            Returns None for non-SELECT queries or if the connection is not established.
+
+        Raises
+        ------
+        sqlite3.Error
+            If an error occurs while executing the query.
+        """
         if not self.conn:
-            print("Cannot run query, no database connection.")
+            logger.info("Cannot run query, no database connection.")
             return None
         try:
             cursor = self.conn.cursor()
@@ -139,97 +171,118 @@ class Database:
                 return [dict(zip(columns, row, strict=False)) for row in rows]
 
         except sqlite3.Error as e:
-            print(f"Error running query: {e}")
-            return None
+            raise sqlite3.Error(f"Error running query: {e}") from e
 
     def add_book(self, book: GoogleBookSlimResponse) -> Optional[str]:
+        """
+        Add a book to the database, including its authors and categories.
+
+        Parameters
+        ----------
+        book : GoogleBookSlimResponse
+            The book details to be added.
+
+        Returns
+        -------
+        Optional[str]
+            The ID of the added book, or None if the operation failed.
+        """
         if not self.conn:
-            print("Cannot add book, no database connection.")
+            logger.info("Cannot add book, no database connection.")
             return None
 
         if not book.title:
-            print("Cannot insert book without a title.")
+            logger.info("Cannot insert book without a title.")
             return None
 
         try:
             cursor = self.conn.cursor()
             book_id = str(uuid.uuid4())
 
-            # Insert book details, ignore if a book with the same UUID somehow exists.
-            cursor.execute(
-                """
-                INSERT OR IGNORE INTO books
-                (id, title, publisher, publishedDate, description, pageCount, printType, language, infoLink, smallThumbnail, isbn)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    book_id,
-                    book.title,
-                    book.publisher,
-                    book.published_date,
-                    book.description,
-                    book.page_count,
-                    book.print_type,
-                    book.language,
-                    book.info_link,
-                    book.small_thumbnail,
-                    book.isbn,
-                ),
-            )
-
-            # Handle authors
-            if book.authors:
-                for author_name in book.authors:
-                    cursor.execute(
-                        "SELECT id FROM authors WHERE name = ?", (author_name,)
-                    )
-                    author_id_row = cursor.fetchone()
-
-                    if author_id_row:
-                        author_id = author_id_row[0]
-                    else:
-                        author_id = str(uuid.uuid4())
-                        cursor.execute(
-                            "INSERT INTO authors (id, name) VALUES (?, ?)",
-                            (author_id, author_name),
-                        )
-
-                    cursor.execute(
-                        "INSERT OR IGNORE INTO book_authors (book_id, author_id) VALUES (?, ?)",
-                        (book_id, author_id),
-                    )
-
-            # Handle categories
-            if book.categories:
-                for category_name in book.categories:
-                    cursor.execute(
-                        "SELECT id FROM categories WHERE name = ?", (category_name,)
-                    )
-                    category_id_row = cursor.fetchone()
-
-                    if category_id_row:
-                        category_id = category_id_row[0]
-                    else:
-                        category_id = str(uuid.uuid4())
-                        cursor.execute(
-                            "INSERT INTO categories (id, name) VALUES (?, ?)",
-                            (category_id, category_name),
-                        )
-
-                    cursor.execute(
-                        "INSERT OR IGNORE INTO book_categories (book_id, category_id) VALUES (?, ?)",
-                        (book_id, category_id),
-                    )
+            self._insert_book(cursor, book_id, book)
+            self._handle_authors(cursor, book_id, book.authors)
+            self._handle_categories(cursor, book_id, book.categories)
 
             self.conn.commit()
-            print(f"Successfully added book: {book.title}")
+            logger.info(f"Successfully added book: {book.title}")
             return book_id
 
         except sqlite3.Error as e:
-            print(f"Error adding book: {e}")
+            logger.info(f"Error adding book: {e}")
             if self.conn:
                 self.conn.rollback()
             return None
+
+    def _insert_book(self, cursor, book_id: str, book: GoogleBookSlimResponse):
+        """Insert the book details into the database."""
+        cursor.execute(
+            """
+            INSERT OR IGNORE INTO books
+            (id, title, publisher, publishedDate, description, pageCount, printType, language, infoLink, smallThumbnail, isbn)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                book_id,
+                book.title,
+                book.publisher,
+                book.published_date,
+                book.description,
+                book.page_count,
+                book.print_type,
+                book.language,
+                book.info_link,
+                book.small_thumbnail,
+                book.isbn,
+            ),
+        )
+
+    def _handle_authors(self, cursor, book_id: str, authors: Optional[List[str]]):
+        """Handle the authors of the book."""
+        if not authors:
+            return
+
+        for author_name in authors:
+            cursor.execute(
+                "SELECT id FROM authors WHERE name = ?", (author_name.strip(),)
+            )
+            author_id_row = cursor.fetchone()
+
+            if author_id_row:
+                author_id = author_id_row[0]
+            else:
+                author_id = str(uuid.uuid4())
+                cursor.execute(
+                    "INSERT INTO authors (id, name) VALUES (?, ?)",
+                    (author_id, author_name),
+                )
+
+            cursor.execute(
+                "INSERT OR IGNORE INTO book_authors (book_id, author_id) VALUES (?, ?)",
+                (book_id, author_id),
+            )
+
+    def _handle_categories(self, cursor, book_id: str, categories: Optional[List[str]]):
+        """Handle the categories of the book."""
+        if not categories:
+            return
+
+        for category_name in categories:
+            cursor.execute("SELECT id FROM categories WHERE name = ?", (category_name,))
+            category_id_row = cursor.fetchone()
+
+            if category_id_row:
+                category_id = category_id_row[0]
+            else:
+                category_id = str(uuid.uuid4())
+                cursor.execute(
+                    "INSERT INTO categories (id, name) VALUES (?, ?)",
+                    (category_id, category_name),
+                )
+
+            cursor.execute(
+                "INSERT OR IGNORE INTO book_categories (book_id, category_id) VALUES (?, ?)",
+                (book_id, category_id),
+            )
 
     def add_author(
         self,
@@ -270,7 +323,7 @@ class Database:
             The ID of the added or updated author, or None if the operation failed.
         """
         if not self.conn:
-            print("Cannot add author, no database connection.")
+            logger.info("Cannot add author, no database connection.")
             return None
 
         try:
@@ -308,12 +361,12 @@ class Database:
             return author_id
 
         except sqlite3.IntegrityError as e:
-            print(f"Integrity error adding/updating author: {e}")
+            logger.error(f"Integrity error adding/updating author: {e}")
             if self.conn:
                 self.conn.rollback()
             return None
         except sqlite3.Error as e:
-            print(f"Error adding/updating author: {e}")
+            logger.error(f"Error adding/updating author: {e}")
             if self.conn:
                 self.conn.rollback()
             return None
@@ -360,9 +413,9 @@ class Database:
             sql = f"UPDATE authors SET {set_clause} WHERE id = ?"
             cursor.execute(sql, tuple(params))
             self.conn.commit()
-            print(f"Updated author {author_id} ({name})")
+            logger.info(f"Updated author {author_id} ({name})")
         else:
-            print(f"No new data provided to update author {author_id} ({name})")
+            logger.info(f"No new data provided to update author {author_id} ({name})")
 
     def _insert_new_author(
         self,
@@ -390,4 +443,4 @@ class Database:
             ),
         )
         self.conn.commit()
-        print(f"Inserted new author {author_id} ({name})")
+        logger.info(f"Inserted new author {author_id} ({name})")
