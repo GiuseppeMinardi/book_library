@@ -59,7 +59,7 @@ class GoogleBookRetriever:
         str
             A string showing the base URL and a masked API key.
         """
-        return f"GoogleBookretriever(base_url={self.base_url}, api_key=*****)"
+        return f"GoogleBookretriever(base_url={self.base_url}, api_key={self.api_key.get_secret_value()[:4]}****)"
 
     def __str__(self) -> str:
         """Provide a user-friendly string representation of the instance.
@@ -125,6 +125,20 @@ class GoogleBookRetriever:
     def flatten_response(
         full_response: GoogleBooksResponse, isbn: str
     ) -> GoogleBookSlimResponse:
+        """Flatten a GoogleBooksResponse to a GoogleBookSlimResponse.
+
+        Parameters
+        ----------
+        full_response : GoogleBooksResponse
+            The full API response model to flatten.
+        isbn : str
+            The ISBN of the book.
+
+        Returns
+        -------
+        GoogleBookSlimResponse
+            A validated slim response model with essential book metadata.
+        """
         slim_response = {
             "kind": full_response.kind,
             "title": full_response.volumeInfo.title,

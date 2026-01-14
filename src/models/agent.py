@@ -21,20 +21,20 @@ class AgentConfig(BaseSettings):
     # environments where env vars may not be set. These can still be
     # overridden via environment variables (aliases shown).
     model_name: str = Field(
-        "claude-instant",
+        default="claude-instant",
         alias="LLM_MODEL_NAME",
         description="Name of the AI model to be used by the agent.",
     )
 
     # Make provider_url optional and default to a common local Ollama URL.
     provider_url: Optional[str] = Field(
-        "http://localhost:11434",
+        default="http://localhost:11434",
         alias="LLM_PROVIDER_URL",
         description="Base URL of the AI model provider.",
     )
 
     api_key: Optional[SecretStr] = Field(
-        None,
+        default=None,
         alias="LLM_API_KEY",
         description="API key for accessing the AI model provider.",
     )
