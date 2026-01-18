@@ -42,7 +42,8 @@ exclude = [
     "node_modules",
     "venv",
     "data/",
-    "notebooks/archive/"
+    "notebooks/archive/",
+    "tests"
 ]
 
 [lint.pydocstyle]

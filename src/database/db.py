@@ -22,6 +22,7 @@ class Database:
             self.create_db()
 
         self.conn = None
+        self.connect()
 
     def create_db(self):
         """Create the database file and initializes the tables."""
@@ -34,7 +35,7 @@ class Database:
         """Connect to the Database."""
         try:
             logger.info(f"Connecting to database at {self.db_location}")
-            self.conn = sqlite3.connect(self.db_location)
+            self.conn = sqlite3.connect(self.db_location, check_same_thread=False)
         except sqlite3.Error as e:
             raise e
 
