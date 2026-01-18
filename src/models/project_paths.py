@@ -1,3 +1,4 @@
+"""Project paths settings module."""
 from pathlib import Path
 
 from pydantic import DirectoryPath, Field
@@ -5,6 +6,8 @@ from pydantic_settings import BaseSettings
 
 
 class DataFolderPathsSettings(BaseSettings):
+    """Settings for data folder paths."""
+
     data_folder: DirectoryPath = Field(
         default=Path(__file__).parents[2].joinpath("data").resolve(),
         alias="DATA_FOLDER_PATH",
@@ -66,6 +69,18 @@ class StreamlitQueryPathsSettings(BaseSettings):
             The path to the Authors queries folder.
         """
         return self.root.joinpath("authors").resolve()
+
+    @property
+    def categories_queries_folder(self) -> Path:
+        """Path to the Categories queries folder.
+
+        Returns
+        -------
+        Path
+            The path to the Categories queries folder.
+        """
+        return self.root.joinpath("categories").resolve()
+
 
 class StreamlitAppPathsSettings(BaseSettings):
     """Settings for Streamlit application folder paths.

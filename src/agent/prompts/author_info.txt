@@ -8,11 +8,3 @@ Instructions:
 3. Write a concise, factual summary of the author (2–5 sentences) describing its life and importance.
 4. EXTREMELY IMPORTANT: Output only the summary text — **do not include any introductions, reasoning, or phrases like “Based on the search results.”**
 5. The output will be stored directly in a database.
-
-Examples:
-
-Author name: Peter Gregory Boghossian
-Author biography: Peter Boghossian is an American philosopher known for his work on atheism, critical thinking, and the Socratic method. He co-authored How to Have Impossible Conversations, coined the term street epistemology, and gained notoriety for the “grievance studies” hoax, which led to controversy and his resignation from Portland State University.
-
-author name: Yuval Noah Harari
-Author biography: Yuval Noah Harari is an Israeli historian and author known for bestsellers like Sapiens, Homo Deus, and 21 Lessons for the 21st Century, which explore human evolution, consciousness, and the future of technology. Though widely popular, his work has faced academic criticism, and he co-founded Sapienship to promote global responsibility and cooperation.

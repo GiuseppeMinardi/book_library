@@ -37,5 +37,8 @@ def test_project_paths_settings():
     assert isinstance(project_paths.streamlit_app_folder, StreamlitAppPathsSettings)
     assert project_paths.streamlit_app_folder.streamlit_query_folder.root.name == "streamlit_queries"
     assert project_paths.streamlit_app_folder.streamlit_query_folder.overview_queries_folder.name == "overview"
+    assert project_paths.streamlit_app_folder.streamlit_query_folder.overview_queries_folder.name.exists()
     assert project_paths.streamlit_app_folder.streamlit_query_folder.books_queries_folder.name == "books"
+    assert project_paths.streamlit_app_folder.streamlit_query_folder.books_queries_folder.name.exists()
     assert project_paths.streamlit_app_folder.streamlit_query_folder.authors_queries_folder.name == "authors"
+    assert project_paths.streamlit_app_folder.streamlit_query_folder.authors_queries_folder.name.exists()
