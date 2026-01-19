@@ -28,7 +28,8 @@ db = get_database()
 # Sidebar navigation
 st.sidebar.title("📚 Book Library")
 page = st.sidebar.radio(
-    "Navigation", ["📊 Overview", "📖 Books", "✍️ Authors", "🏷️ Categories"]
+    "Navigation",
+    ["📊 Overview", "📖 Books", "✍️ Authors", "🏷️ Categories", "Edit Database"],
 )
 
 # Main content
@@ -131,32 +132,24 @@ elif page == "📖 Books":
             st.info("No language data available.")
 
 elif page == "✍️ Authors":
+    from src.streamlit_app.plots.authors_plots import plot_nationalities_barchart
     st.title("✍️ Authors")
-    
+
     with db:
-        # Search
-        search_author = st.text_input("Search by author name", placeholder="e.g., J.R.R. Tolkien")
-        
         # Build query
         query = """
             SELECT 
                 a.name,
                 a.nationality,
+                a.sex,
                 a.birth_date,
                 a.death_date,
-                COUNT(ba.book_id) as books
+                a.bio
             FROM authors a
-            LEFT JOIN book_authors ba ON a.id = ba.author_id
             WHERE 1=1
         """
         params = []
-        
-        if search_author:
-            query += " AND a.name LIKE ?"
-            params.append(f"%{search_author}%")
-        
-        query += " GROUP BY a.id ORDER BY books DESC LIMIT 100"
-        
+
         # Get authors
         authors_df = db.run_query(query, tuple(params), as_dataframe=True)
         
@@ -166,6 +159,13 @@ elif page == "✍️ Authors":
             st.dataframe(authors_df, use_container_width=True, hide_index=True)
         else:
             st.info("No authors found matching your criteria.")
+
+        st.subheader("Nationalities")
+        if authors_df is not None and not authors_df.empty:
+            fig_nationalities = plot_nationalities_barchart(authors_df)
+            st.plotly_chart(fig_nationalities, use_container_width=True)
+        else:
+            st.info("No nationality data available.")
 
 elif page == "🏷️ Categories":
     st.title("🏷️ Categories")
@@ -187,6 +187,11 @@ elif page == "🏷️ Categories":
             st.dataframe(categories_df, use_container_width=True, hide_index=True)
         else:
             st.info("No categories found.")
+elif page == "Edit Database":
+    st.title("Edit Database")
+    st.info("This feature is under development.")
+    # in this section each table of the database will be editable through streamlit forms
+    # For now, just show a placeholder
 
 st.sidebar.divider()
 st.sidebar.info("📚 Book Library Dashboard - Powered by Streamlit")
