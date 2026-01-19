@@ -260,21 +260,28 @@ class Database:
         if not authors:
             return
 
-        for author_name in authors:
+        for original_name in authors:
+            # FIX: Strip whitespace once, use 'clean_name' everywhere
+            clean_name = original_name.strip()
+            
+            # STEP 1: Check if cleaned author name exists
             cursor.execute(
-                "SELECT id FROM authors WHERE name = ?", (author_name.strip(),)
+                "SELECT id FROM authors WHERE name = ?", (clean_name,)
             )
             author_id_row = cursor.fetchone()
 
+            # STEP 2: Reuse existing ID
             if author_id_row:
                 author_id = author_id_row[0]
+            # STEP 3: Create new author with the CLEAN name
             else:
                 author_id = str(uuid.uuid4())
                 cursor.execute(
                     "INSERT INTO authors (id, name) VALUES (?, ?)",
-                    (author_id, author_name),
+                    (author_id, clean_name),
                 )
 
+            # Link Book to Author
             cursor.execute(
                 "INSERT OR IGNORE INTO book_authors (book_id, author_id) VALUES (?, ?)",
                 (book_id, author_id),

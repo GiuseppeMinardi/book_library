@@ -112,7 +112,19 @@ elif page == "📖 Books":
         st.subheader(f"Books ({len(books_df) if books_df is not None else 0})")
         
         if books_df is not None and not books_df.empty:
-            st.dataframe(books_df, use_container_width=True, hide_index=True)
+            st.dataframe(
+                books_df,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "title": "Title",
+                    "authors": "Authors",
+                    "categories": "Categories",
+                    "published_date": "Published Date",
+                    "page_count": "Page Count",
+                    "language": "Language",
+                },
+            )
         else:
             st.info("No books found matching your criteria.")
 
@@ -137,21 +149,12 @@ elif page == "✍️ Authors":
 
     with db:
         # Build query
-        query = """
-            SELECT 
-                a.name,
-                a.nationality,
-                a.sex,
-                a.birth_date,
-                a.death_date,
-                a.bio
-            FROM authors a
-            WHERE 1=1
-        """
-        params = []
-
+        authors_query_folder = project_paths.streamlit_app_folder.streamlit_query_folder.authors_queries_folder
+        query = authors_query_folder.joinpath("search_authors.sql").read_text()
+        print(query)
         # Get authors
-        authors_df = db.run_query(query, tuple(params), as_dataframe=True)
+        authors_df = db.run_query(query, as_dataframe=True)
+        print(f"Authors DataFrame:\n{authors_df}")
         
         st.subheader(f"Authors ({len(authors_df) if authors_df is not None else 0})")
         

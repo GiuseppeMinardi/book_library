@@ -7,5 +7,3 @@ SELECT
     b.pageCount,
     b.description
 from books b;
-
-select * from authors;

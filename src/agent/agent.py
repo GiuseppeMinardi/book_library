@@ -56,4 +56,4 @@ def get_book_summary_agent(provider: str | None = None) -> Agent[None, str]:
 
 author_info_agent: Agent[None, AuthorInfo] = get_author_info_agent(provider="anthropic")
 
-book_summary_agent: Agent[None, str] = get_book_summary_agent(provider="ollama")
+book_summary_agent: Agent[None, str] = get_book_summary_agent(provider="anthropic")
