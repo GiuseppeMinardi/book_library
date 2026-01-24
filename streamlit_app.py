@@ -191,10 +191,66 @@ elif page == "🏷️ Categories":
         else:
             st.info("No categories found.")
 elif page == "Edit Database":
-    st.title("Edit Database")
-    st.info("This feature is under development.")
-    # in this section each table of the database will be editable through streamlit forms
-    # For now, just show a placeholder
+    with db:
+        st.title("Edit Database")
+        st.subheader("Books")
+        books_data = db.run_query("SELECT * FROM books", as_dataframe=True)
+        edited_books = st.data_editor(books_data, num_rows="dynamic")
+        st.divider()
+        st.subheader("Authors")
+        authors_data = db.run_query("SELECT * FROM authors", as_dataframe=True)
+        edited_authors = st.data_editor(authors_data, num_rows="dynamic")
+        if st.button("Save Changes"):
+            # Update books
+            for _, row in edited_books.iterrows():
+                db.run_query(
+                    """
+                    INSERT INTO books (isbn, title, authors, categories, published_date, page_count, language, publisher, description)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(isbn) DO UPDATE SET
+                        title=excluded.title,
+                        authors=excluded.authors,
+                        categories=excluded.categories,
+                        published_date=excluded.published_date,
+                        page_count=excluded.page_count,
+                        language=excluded.language,
+                        publisher=excluded.publisher,
+                        description=excluded.description;
+                    """,
+                    (
+                        row["isbn"],
+                        row["title"],
+                        row["authors"],
+                        row["categories"],
+                        row["published_date"],
+                        row["page_count"],
+                        row["language"],
+                        row["publisher"],
+                        row["description"],
+                    ),
+                )
+            # Update authors
+            for _, row in edited_authors.iterrows():
+                db.run_query(
+                    """
+                    INSERT INTO authors (id, name, nationality, birth_date, death_date, biography)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        name=excluded.name,
+                        nationality=excluded.nationality,
+                        birth_date=excluded.birth_date,
+                        death_date=excluded.death_date,
+                        biography=excluded.biography;
+                    """,
+                    (
+                        row["id"],
+                        row["name"],
+                        row["nationality"],
+                        row["birth_date"],
+                        row["death_date"],
+                        row["biography"],
+                    ),
+                )
 
 st.sidebar.divider()
 st.sidebar.info("📚 Book Library Dashboard - Powered by Streamlit")
