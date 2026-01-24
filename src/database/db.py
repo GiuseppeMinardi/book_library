@@ -1,3 +1,6 @@
+"""Database handling module."""
+
+import pickle
 import sqlite3
 import uuid
 from pathlib import Path
@@ -7,6 +10,9 @@ import pandas as pd
 
 from ..logger import logger
 from ..models.google_books import GoogleBookSlimResponse
+from ..models.project_paths import ProjectPathsSettings
+
+project_paths = ProjectPathsSettings()
 
 
 class Database:
@@ -14,7 +20,7 @@ class Database:
 
     def __init__(self, db_location: Path | None = None):
         if db_location is None:
-            self.db_location = Path(__file__).parent.joinpath("books.db")
+            self.db_location = project_paths.database_path
         else:
             self.db_location = db_location
 
@@ -22,6 +28,7 @@ class Database:
             self.create_db()
 
         self.conn = None
+        self.connect()
 
     def create_db(self):
         """Create the database file and initializes the tables."""
@@ -34,7 +41,7 @@ class Database:
         """Connect to the Database."""
         try:
             logger.info(f"Connecting to database at {self.db_location}")
-            self.conn = sqlite3.connect(self.db_location)
+            self.conn = sqlite3.connect(self.db_location, check_same_thread=False)
         except sqlite3.Error as e:
             raise e
 
@@ -117,6 +124,18 @@ class Database:
                     PRIMARY KEY (book_id, category_id),
                     FOREIGN KEY (book_id) REFERENCES books (id) ON DELETE CASCADE,
                     FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE CASCADE
+                );
+            """)
+
+            # Embeddings Table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS embeddings (
+                    book_id TEXT,
+                    model_name TEXT,
+                    vector BLOB,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (book_id, model_name),
+                    FOREIGN KEY (book_id) REFERENCES books (id) ON DELETE CASCADE
                 );
             """)
             self.conn.commit()
@@ -241,21 +260,28 @@ class Database:
         if not authors:
             return
 
-        for author_name in authors:
+        for original_name in authors:
+            # FIX: Strip whitespace once, use 'clean_name' everywhere
+            clean_name = original_name.strip()
+            
+            # STEP 1: Check if cleaned author name exists
             cursor.execute(
-                "SELECT id FROM authors WHERE name = ?", (author_name.strip(),)
+                "SELECT id FROM authors WHERE name = ?", (clean_name,)
             )
             author_id_row = cursor.fetchone()
 
+            # STEP 2: Reuse existing ID
             if author_id_row:
                 author_id = author_id_row[0]
+            # STEP 3: Create new author with the CLEAN name
             else:
                 author_id = str(uuid.uuid4())
                 cursor.execute(
                     "INSERT INTO authors (id, name) VALUES (?, ?)",
-                    (author_id, author_name),
+                    (author_id, clean_name),
                 )
 
+            # Link Book to Author
             cursor.execute(
                 "INSERT OR IGNORE INTO book_authors (book_id, author_id) VALUES (?, ?)",
                 (book_id, author_id),
@@ -444,3 +470,92 @@ class Database:
         )
         self.conn.commit()
         logger.info(f"Inserted new author {author_id} ({name})")
+
+    def add_description_embedding(
+        self, book_id: str, embedding_vector: List[float], model_name: str = "default"
+    ):
+        """
+        Add or update an embedding for a specific book description.
+
+        Parameters
+        ----------
+        book_id : str
+            The ID of the book.
+        embedding_vector : List[float]
+            The embedding vector (list of floats).
+        model_name : str, optional
+            The name of the model used to generate the embedding, by default "default".
+        """
+        if not self.conn:
+            logger.info("Cannot add embedding, no database connection.")
+            return
+
+        try:
+            # Serialize the vector to bytes using pickle for storage as BLOB
+            vector_blob = pickle.dumps(embedding_vector)
+
+            cursor = self.conn.cursor()
+            # Upsert logic: Update if the book_id+model_name combination exists
+            cursor.execute(
+                """
+                INSERT INTO embeddings (book_id, model_name, vector)
+                VALUES (?, ?, ?)
+                ON CONFLICT(book_id, model_name)
+                DO UPDATE SET vector=excluded.vector, created_at=CURRENT_TIMESTAMP
+                """,
+                (book_id, model_name, vector_blob),
+            )
+            self.conn.commit()
+            logger.info(f"Added embedding for book {book_id} using model {model_name}")
+
+        except sqlite3.Error as e:
+            logger.error(f"Error adding embedding: {e}")
+            if self.conn:
+                self.conn.rollback()
+
+    def get_embeddings(
+        self, model_name: str = "default", as_dataframe: bool = True
+    ) -> Union[pd.DataFrame, dict[str, List[float]], None]:
+        """
+        Retrieve all embeddings for a specific model.
+
+        Parameters
+        ----------
+        model_name : str, optional
+            The name of the model to filter by, by default "default".
+        as_dataframe : bool, optional
+            If True, return a pandas DataFrame. If False, return a dictionary {book_id: vector}, by default True.
+
+        Returns
+        -------
+        Union[pd.DataFrame, dict[str, List[float]], None]
+            A DataFrame with columns ['book_id', 'vector'] or a dictionary mapping book_id to the embedding list.
+        """
+        if not self.conn:
+            logger.info("Cannot get embeddings, no database connection.")
+            return None
+
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                "SELECT book_id, vector FROM embeddings WHERE model_name = ?",
+                (model_name,),
+            )
+            rows = cursor.fetchall()
+
+            if not rows:
+                return pd.DataFrame() if as_dataframe else {}
+
+            # Deserialize the BLOBs back into lists
+            data = {book_id: pickle.loads(vector_blob) for book_id, vector_blob in rows}
+
+            if as_dataframe:
+                # Create a DataFrame with two columns: book_id and vector (containing the list)
+                df_ = pd.DataFrame(list(data.items()), columns=["book_id", "vector"])
+                return df_
+
+            return data
+
+        except sqlite3.Error as e:
+            logger.error(f"Error retrieving embeddings: {e}")
+            return None

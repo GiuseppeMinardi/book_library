@@ -6,7 +6,9 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "ipykernel>=7.0.1",
+    "ollama>=0.6.1",
     "pandas>=2.3.3",
+    "plotly>=6.5.2",
     "pydantic>=2.12.3",
     "pydantic-ai>=1.2.1",
     "pydantic-ai-slim[duckduckgo]>=1.2.1",
@@ -15,4 +17,10 @@ dependencies = [
     "requests>=2.32.5",
     "streamlit>=1.50.0",
     "wikipedia>=1.4.0",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.0.1",
+    "pytest>=9.0.2",
 ]
