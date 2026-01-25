@@ -1,3 +1,7 @@
+# Book Library
+
+A project aimed to make an AI-powered book database
+
 ```mermaid
 erDiagram
     %% Core Entity: The Book
@@ -45,9 +49,17 @@ erDiagram
         TEXT category_id PK, FK
     }
 
-    %% Entity: Vector Embeddings (1-to-Many with Books)
-    embeddings {
+    %% Entity: Book Vector Embeddings (1-to-Many with Books)
+    book_embeddings {
         TEXT book_id PK, FK
+        TEXT model_name PK "Composite Key part 2"
+        BLOB vector "Pickled List[float]"
+        TIMESTAMP created_at
+    }
+
+    %% Entity: Author Vector Embeddings (1-to-Many with Authors)
+    author_embeddings {
+        TEXT author_id PK, FK
         TEXT model_name PK "Composite Key part 2"
         BLOB vector "Pickled List[float]"
         TIMESTAMP created_at
@@ -60,5 +72,6 @@ erDiagram
     books ||--o{ book_categories : "labeled as"
     categories ||--o{ book_categories : "contains"
 
-    books ||--o{ embeddings : "generates"
+    books ||--o{ book_embeddings : "generates"
+    authors ||--o{ author_embeddings : "generates"
 ```
