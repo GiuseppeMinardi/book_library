@@ -1,3 +1,5 @@
+"""Main command line tool for managing the book library project."""
+
 import argparse
 import sys
 from typing import List
@@ -28,17 +30,17 @@ def read_isbns_from_sheet() -> List[str]:
     )
 
     try:
-        df = pd.read_csv(filepath_or_buffer=url, dtype={"ISBN": "string"})
+        df_ = pd.read_csv(filepath_or_buffer=url, dtype={"ISBN": "string"})
     except Exception as e:
         logger.error(f"Error reading Google Sheet CSV: {e}")
         return []
 
-    if df.shape[1] == 0:
+    if df_.shape[1] == 0:
         return []
 
     # take first column as ISBN column, drop NA, strip and deduplicate
     isbns = (
-        df.iloc[:, 0]
+        df_.iloc[:, 0]
         .dropna()
         .astype(str)
         .str.strip()
@@ -51,6 +53,7 @@ def read_isbns_from_sheet() -> List[str]:
 
 
 def main() -> None:
+    """Main function to parse command line arguments and execute corresponding actions."""  # noqa: D401
     parser = argparse.ArgumentParser(
         description="Command line tool for dealing with the project"
     )

@@ -1,3 +1,4 @@
+"""Module for generating plots related to authors using Plotly."""
 
 import pandas as pd
 import plotly.express as px
