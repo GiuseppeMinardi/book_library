@@ -17,7 +17,7 @@ data/*/*.json
 
 uv.lock
 *.log
-populate_authors.py
 test_agenti.py
 src/database/sql/query.sql
 src/database/sql/query1.sql
+test.sql

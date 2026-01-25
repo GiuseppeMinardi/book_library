@@ -129,7 +129,7 @@ class Database:
 
             # Embeddings Table
             cursor.execute("""
-                CREATE TABLE IF NOT EXISTS embeddings (
+                CREATE TABLE IF NOT EXISTS book_embeddings (
                     book_id TEXT,
                     model_name TEXT,
                     vector BLOB,
@@ -139,6 +139,20 @@ class Database:
                 );
             """)
             self.conn.commit()
+
+            # author embeddings
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS author_embeddings (
+                    author_id TEXT,
+                    model_name TEXT,
+                    vector BLOB,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (author_id, model_name),
+                    FOREIGN KEY (author_id) REFERENCES authors (id) ON DELETE CASCADE
+                );
+            """
+            )
             logger.info("Tables created successfully.")
         except sqlite3.Error as e:
             logger.info(f"Error creating tables: {e}")
@@ -471,7 +485,51 @@ class Database:
         self.conn.commit()
         logger.info(f"Inserted new author {author_id} ({name})")
 
-    def add_description_embedding(
+    def add_author_embedding(
+        self, author_id: str, embedding_vector: List[float], model_name: str = "default"
+    ):
+        """
+        Add or update an embedding for a specific author.
+
+        Parameters
+        ----------
+        author_id : str
+            The ID of the author.
+        embedding_vector : List[float]
+            The embedding vector (list of floats).
+        model_name : str, optional
+            The name of the model used to generate the embedding, by default "default".
+        """
+        if not self.conn:
+            logger.info("Cannot add embedding, no database connection.")
+            return
+
+        try:
+            # Serialize the vector to bytes using pickle for storage as BLOB
+            vector_blob = pickle.dumps(embedding_vector)
+
+            cursor = self.conn.cursor()
+            # Upsert logic: Update if the author_id+model_name combination exists
+            cursor.execute(
+                """
+                INSERT INTO author_embeddings (author_id, model_name, vector)
+                VALUES (?, ?, ?)
+                ON CONFLICT(author_id, model_name)
+                DO UPDATE SET vector=excluded.vector, created_at=CURRENT_TIMESTAMP
+                """,
+                (author_id, model_name, vector_blob),
+            )
+            self.conn.commit()
+            logger.info(
+                f"Added embedding for author {author_id} using model {model_name}"
+            )
+
+        except sqlite3.Error as e:
+            logger.error(f"Error adding embedding: {e}")
+            if self.conn:
+                self.conn.rollback()
+
+    def add_book_embedding(
         self, book_id: str, embedding_vector: List[float], model_name: str = "default"
     ):
         """
@@ -498,7 +556,7 @@ class Database:
             # Upsert logic: Update if the book_id+model_name combination exists
             cursor.execute(
                 """
-                INSERT INTO embeddings (book_id, model_name, vector)
+                INSERT INTO book_embeddings (book_id, model_name, vector)
                 VALUES (?, ?, ?)
                 ON CONFLICT(book_id, model_name)
                 DO UPDATE SET vector=excluded.vector, created_at=CURRENT_TIMESTAMP
