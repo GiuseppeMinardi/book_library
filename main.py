@@ -8,6 +8,7 @@ from src.logger import logger
 from src.models.google_sheet import GoogleSheetSettings
 from src.populate_authors import populate_authors
 from src.populate_books import add_book_from_isbn, add_books_from_isbn_list
+from src.populate_embeddings import populate_embeddings
 
 
 def read_isbns_from_sheet() -> List[str]:
@@ -72,6 +73,13 @@ def main() -> None:
         help="Populate missing author information in the database",
     )
 
+    group.add_argument(
+        "-e",
+        "--fill-embeddings",
+        action="store_true",
+        help="Populate embeddings for books and authors in the database",
+    )
+
     args = parser.parse_args()
 
     if args.from_sheet:
@@ -95,6 +103,10 @@ def main() -> None:
 
     if args.fill_authors:
         populate_authors()
+        return
+
+    if args.fill_embeddings:
+        populate_embeddings()
         return
 
 

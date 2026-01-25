@@ -4,12 +4,19 @@ This module provides a Streamlit-based dashboard for browsing and managing a boo
 It displays library overview statistics, books, authors, and categories with search and filtering capabilities.
 """
 
+import pickle
+
 import streamlit as st
+from umap import UMAP
+
+import pandas as pd
+from sklearn.metrics.pairwise import cosine_similarity
 
 from src.database.db import Database
 from src.models.project_paths import ProjectPathsSettings
 
 project_paths = ProjectPathsSettings()
+embeddings_reducer = UMAP(n_components=2, random_state=42)
 
 
 # Page config
@@ -24,6 +31,9 @@ def get_database():
 
 
 db = get_database()
+
+# this is going to be a selection box in the sidebar later
+embedding_model = "qwen3-embedding:0.6b"
 
 # Sidebar navigation
 st.sidebar.title("📚 Book Library")
@@ -95,7 +105,13 @@ if page == "📊 Overview":
             st.info("No categories found in the database.")
 
 elif page == "📖 Books":
-    from src.streamlit_app.plots.books_plot import plot_language_barchart
+    from src.streamlit_app.plots.books_plot import (
+        plot_language_barchart,
+        plot_similarity_matrix_heatmap,
+        plot_umap_scatter,
+    )
+
+    params = {"model_name": embedding_model}
     st.title("📖 Books")
     books_query_path = (
         project_paths.streamlit_app_folder.streamlit_query_folder.books_queries_folder
@@ -104,13 +120,14 @@ elif page == "📖 Books":
     with db:
         # Build query
         books_query = books_query_path.joinpath("search_books.sql").read_text()
-        params = []
 
         # Get books
-        books_df = db.run_query(query=books_query, as_dataframe=True)
-        
+        books_df = db.run_query(
+            query=books_query, params=params, as_dataframe=True
+        ).assign(embedding_vector=lambda df_: df_.embedding_vector.apply(pickle.loads))
+
         st.subheader(f"Books ({len(books_df) if books_df is not None else 0})")
-        
+
         if books_df is not None and not books_df.empty:
             st.dataframe(
                 books_df,
@@ -143,21 +160,64 @@ elif page == "📖 Books":
         else:
             st.info("No language data available.")
 
+        st.divider()
+
+        st.subheader("Books Embeddings Visualization")
+        embedding_vectors_df = pd.DataFrame(
+            books_df.embedding_vector.tolist(), index=books_df.isbn
+        )
+        books_cosine_similarity_matrix = cosine_similarity(embedding_vectors_df)
+        similarity_matrix_df = pd.DataFrame(
+            books_cosine_similarity_matrix,
+            index=books_df.title,
+            columns=books_df.title,
+        )
+        umap_books_embeddings = embeddings_reducer.fit_transform(
+            embedding_vectors_df.values
+        )
+
+        books_df = books_df.assign(
+            UMAP1=umap_books_embeddings[:, 0],
+            UMAP2=umap_books_embeddings[:, 1],
+        )
+
+        fig_similarity_heatmap = plot_similarity_matrix_heatmap(
+            similarity_matrix=similarity_matrix_df
+        )
+
+        # create two columns to show scatter plot and heatmap side by side
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("UMAP Scatter Plot of Book Embeddings")
+            plot_umap_fig = plot_umap_scatter(books_df=books_df)
+            st.plotly_chart(figure_or_data=plot_umap_fig, use_container_width=True)
+        with col2:
+            st.subheader("Books Similarity Matrix Heatmap")
+            st.plotly_chart(
+                figure_or_data=fig_similarity_heatmap, use_container_width=True
+            )
+
 elif page == "✍️ Authors":
-    from src.streamlit_app.plots.authors_plots import plot_nationalities_barchart
+    from src.streamlit_app.plots.authors_plots import (
+        plot_authors_similarity_matrix_heatmap,
+        plot_authors_umap_scatter,
+        plot_nationalities_barchart,
+    )
+
     st.title("✍️ Authors")
 
     with db:
         # Build query
         authors_query_folder = project_paths.streamlit_app_folder.streamlit_query_folder.authors_queries_folder
+        params = {"model_name": embedding_model}
         query = authors_query_folder.joinpath("search_authors.sql").read_text()
-        print(query)
         # Get authors
-        authors_df = db.run_query(query, as_dataframe=True)
-        print(f"Authors DataFrame:\n{authors_df}")
-        
+        authors_df = db.run_query(query, params=params, as_dataframe=True).assign(
+            embedding_vector=lambda df_: df_.embedding_vector.apply(pickle.loads)
+        )
+
         st.subheader(f"Authors ({len(authors_df) if authors_df is not None else 0})")
-        
+
         if authors_df is not None and not authors_df.empty:
             st.dataframe(authors_df, use_container_width=True, hide_index=True)
         else:
@@ -170,22 +230,59 @@ elif page == "✍️ Authors":
         else:
             st.info("No nationality data available.")
 
+        st.divider()
+        st.subheader("Authors Embeddings Visualization")
+        authors_embeddings_df = pd.DataFrame(
+            authors_df.embedding_vector.tolist(), index=authors_df.id
+        )
+        authors_cosine_similarity_matrix = cosine_similarity(authors_embeddings_df)
+        similarity_matrix_df = pd.DataFrame(
+            authors_cosine_similarity_matrix,
+            index=authors_df.name,
+            columns=authors_df.name,
+        )
+        umap_authors_embeddings = embeddings_reducer.fit_transform(
+            authors_embeddings_df.values
+        )
+
+        authors_df = authors_df.assign(
+            UMAP1=umap_authors_embeddings[:, 0],
+            UMAP2=umap_authors_embeddings[:, 1],
+        )
+
+        fig_similarity_heatmap = plot_authors_similarity_matrix_heatmap(
+            similarity_matrix=similarity_matrix_df
+        )
+
+        # create two columns to show scatter plot and heatmap side by side
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.subheader("UMAP Scatter Plot of Author Embeddings")
+            plot_umap_fig = plot_authors_umap_scatter(authors_df=authors_df)
+            st.plotly_chart(figure_or_data=plot_umap_fig, use_container_width=True)
+        with col2:
+            st.subheader("Authors Similarity Matrix Heatmap")
+            st.plotly_chart(
+                figure_or_data=fig_similarity_heatmap, use_container_width=True
+            )
+
 elif page == "🏷️ Categories":
     st.title("🏷️ Categories")
     categories_query_path = project_paths.streamlit_app_folder.streamlit_query_folder.categories_queries_folder
-    
+
     with db:
         # Get categories with book counts
         categories_df = db.run_query(
             categories_query_path.joinpath("categories_count.sql").read_text(),
             as_dataframe=True,
         )
-        
+
         if categories_df is not None and not categories_df.empty:
             # Show chart
             st.subheader(f"Categories ({len(categories_df)})")
             st.bar_chart(categories_df.set_index("name")["book_count"])
-            
+
             # Show table
             st.dataframe(categories_df, use_container_width=True, hide_index=True)
         else:
