@@ -86,7 +86,7 @@ if page == "📊 Overview":
 
         if authors_df is not None and not authors_df.empty:
             fig_authors = plot_authors(authors_df)
-            st.plotly_chart(fig_authors, use_container_width=True)
+            st.plotly_chart(fig_authors, width="stretch")
         else:
             st.info("No authors found in the database.")
 
@@ -100,7 +100,7 @@ if page == "📊 Overview":
         )
         if category_df is not None and not category_df.empty:
             fig_categories = plot_categories(category_df)
-            st.plotly_chart(fig_categories, use_container_width=True)
+            st.plotly_chart(fig_categories, width="stretch")
         else:
             st.info("No categories found in the database.")
 
@@ -131,7 +131,7 @@ elif page == "📖 Books":
         if books_df is not None and not books_df.empty:
             st.dataframe(
                 books_df,
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
                 column_config={
                     "title": "Title",
@@ -156,7 +156,7 @@ elif page == "📖 Books":
         if language_df is not None and not language_df.empty:
             st.subheader("Books by Language")
             fig_language = plot_language_barchart(language_df=language_df)
-            st.plotly_chart(figure_or_data=fig_language, use_container_width=True)
+            st.plotly_chart(figure_or_data=fig_language, width="stretch")
         else:
             st.info("No language data available.")
 
@@ -190,12 +190,10 @@ elif page == "📖 Books":
         with col1:
             st.subheader("UMAP Scatter Plot of Book Embeddings")
             plot_umap_fig = plot_umap_scatter(books_df=books_df)
-            st.plotly_chart(figure_or_data=plot_umap_fig, use_container_width=True)
+            st.plotly_chart(figure_or_data=plot_umap_fig, width="stretch")
         with col2:
             st.subheader("Books Similarity Matrix Heatmap")
-            st.plotly_chart(
-                figure_or_data=fig_similarity_heatmap, use_container_width=True
-            )
+            st.plotly_chart(figure_or_data=fig_similarity_heatmap, width="stretch")
 
 elif page == "✍️ Authors":
     from src.streamlit_app.plots.authors_plots import (
@@ -219,14 +217,14 @@ elif page == "✍️ Authors":
         st.subheader(f"Authors ({len(authors_df) if authors_df is not None else 0})")
 
         if authors_df is not None and not authors_df.empty:
-            st.dataframe(authors_df, use_container_width=True, hide_index=True)
+            st.dataframe(authors_df, width="stretch", hide_index=True)
         else:
             st.info("No authors found matching your criteria.")
 
         st.subheader("Nationalities")
         if authors_df is not None and not authors_df.empty:
             fig_nationalities = plot_nationalities_barchart(authors_df)
-            st.plotly_chart(fig_nationalities, use_container_width=True)
+            st.plotly_chart(fig_nationalities, width="stretch")
         else:
             st.info("No nationality data available.")
 
@@ -260,12 +258,10 @@ elif page == "✍️ Authors":
         with col1:
             st.subheader("UMAP Scatter Plot of Author Embeddings")
             plot_umap_fig = plot_authors_umap_scatter(authors_df=authors_df)
-            st.plotly_chart(figure_or_data=plot_umap_fig, use_container_width=True)
+            st.plotly_chart(figure_or_data=plot_umap_fig, width="stretch")
         with col2:
             st.subheader("Authors Similarity Matrix Heatmap")
-            st.plotly_chart(
-                figure_or_data=fig_similarity_heatmap, use_container_width=True
-            )
+            st.plotly_chart(figure_or_data=fig_similarity_heatmap, width="stretch")
 
 elif page == "🏷️ Categories":
     st.title("🏷️ Categories")
@@ -284,7 +280,7 @@ elif page == "🏷️ Categories":
             st.bar_chart(categories_df.set_index("name")["book_count"])
 
             # Show table
-            st.dataframe(categories_df, use_container_width=True, hide_index=True)
+            st.dataframe(categories_df, width="stretch", hide_index=True)
         else:
             st.info("No categories found.")
 elif page == "Edit Database":
