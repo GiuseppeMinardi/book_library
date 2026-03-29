@@ -13,7 +13,7 @@ Dependencies:
 
 import requests
 
-from ..models.google_books import (
+from .google_books_models import (
     GoogleBookSlimResponse,
     GoogleBooksResponse,
     GoogleBooksSettings,
@@ -141,22 +141,22 @@ class GoogleBookRetriever:
         """
         slim_response = {
             "kind": full_response.kind,
-            "title": full_response.volumeInfo.title,
-            "authors": full_response.volumeInfo.authors,
-            "publisher": full_response.volumeInfo.publisher,
-            "publishedDate": full_response.volumeInfo.publishedDate,
-            "description": full_response.volumeInfo.description,
-            "pageCount": full_response.volumeInfo.pageCount,
-            "categories": full_response.volumeInfo.categories,
-            "printType": full_response.volumeInfo.printType,
-            "language": full_response.volumeInfo.language,
-            "infoLink": full_response.volumeInfo.infoLink,
+            "title": full_response.volume_info.title,
+            "authors": full_response.volume_info.authors,
+            "publisher": full_response.volume_info.publisher,
+            "publishedDate": full_response.volume_info.published_date,
+            "description": full_response.volume_info.description,
+            "pageCount": full_response.volume_info.page_count,
+            "categories": full_response.volume_info.categories,
+            "printType": full_response.volume_info.print_type,
+            "language": full_response.volume_info.language,
+            "infoLink": full_response.volume_info.info_link,
             "smallThumbnail": (
-                full_response.volumeInfo.imageLinks.smallThumbnail
-                if full_response.volumeInfo.imageLinks
+                full_response.volume_info.image_links.small_thumbnail
+                if full_response.volume_info.image_links
                 else None
             ),
-            "isbn": isbn
+            "isbn": isbn,
         }
 
         return GoogleBookSlimResponse.model_validate(slim_response)

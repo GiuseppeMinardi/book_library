@@ -39,6 +39,24 @@ services:
       - "11436:11434"
     volumes:
       - ollama_data:/root/.ollama
+
+  agentic_filling_api:
+    build: ./src/agentic_filling
+    container_name: agentic_filling_api
+    restart: always
+    ports:
+      - "8001:8001"
+    environment:
+      - db_api_url=http://db_api:8000
+      - ollama_url=http://ollama:11434
+    depends_on:
+      - books_db
+      - db_api
+      - ollama
+    # NEW: Use the --reload flag for Uvicorn/FastAPI
+    command: uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+    env_file:
+      - .env
 #
 #  # 3. THE STREAMLIT DASHBOARD
 #  dashboard:

@@ -12,6 +12,13 @@ app = FastAPI()
 
 books_retriever = GoogleBookRetriever()
 
+@app.get("/")
+def read_root():
+    return {
+        "message": "Welcome to the Book Library API! Use /search_book/{isbn}/{mode} to search for books."
+    }
+
+
 @app.get("/search_book/{isbn}/{mode}")
 def search_book(isbn: str, mode: Literal["slim", "full"]) -> GoogleBooksResponse | GoogleBookSlimResponse:
     """Search for a book by its ISBN."""

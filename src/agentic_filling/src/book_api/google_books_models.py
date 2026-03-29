@@ -13,7 +13,10 @@ class GoogleBooksSettings(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+        # REMOVE env_file=".env"
+        # This tells Pydantic to look at the OS environment variables instead
+        extra="ignore",
+        case_sensitive=False,  # Good safety measure
     )
 
     api_key: SecretStr = Field(
