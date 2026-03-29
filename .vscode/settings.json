@@ -6,5 +6,9 @@
     "tests"
   ],
   "python.testing.unittestEnabled": false,
-  "python.testing.pytestEnabled": true
+  "python.testing.pytestEnabled": true,
+  "chat.tools.terminal.autoApprove": {
+    "docker exec": true,
+    "docker-compose": true
+  }
 }

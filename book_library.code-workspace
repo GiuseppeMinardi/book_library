@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "src/database_api"
+		},
+		{
+			"path": "src/dashboard"
+		}
+	],
+	"settings": {
+		"chat.tools.terminal.autoApprove": {
+			"docker exec": true,
+			"docker-compose": true
+		},
+		"powershell.cwd": "book_library"
+	}
+}

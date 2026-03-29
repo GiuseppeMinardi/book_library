@@ -1,0 +1,17 @@
+[project]
+name = "database-api"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]
+
+[tool.uv.workspace]
+members = [
+    "src/database_api",
+]

@@ -1,0 +1,52 @@
+# ... (db section remains the same) ...
+services:
+  books_db:
+    # Change this line from postgres:latest to the pgvector image
+    image: pgvector/pgvector:pg16 
+    container_name: books-db
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secretpassword
+      POSTGRES_DB: appdb
+    volumes:
+      - bookdatabase:/var/lib/postgresql/data
+      - ./src/database/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+  # 2. THE API
+#  api:
+#    build: ./api
+#    container_name: app-api
+#    restart: always
+#    ports:
+#      - "8000:8000"
+#    environment:
+#      - DATABASE_URL=postgresql://admin:secretpassword@db:5432/appdb
+#    depends_on:
+#      - db
+#    # NEW: Map your local ./api folder to /app inside the container
+#    volumes:
+#      - ./api:/app
+#    # NEW: Use the --reload flag for Uvicorn/FastAPI
+#    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+#
+#  # 3. THE STREAMLIT DASHBOARD
+#  dashboard:
+#    build: ./dashboard
+#    container_name: app-dashboard
+#    restart: always
+#    ports:
+#      - "8501:8501"
+#    environment:
+#      - API_URL=http://api:8000
+#    depends_on:
+#      - api
+#    # NEW: Map your local ./dashboard folder to /app inside the container
+#    volumes:
+#      - ./dashboard:/app
+#    # Streamlit usually hot-reloads by default, but we keep the standard command
+#    command: streamlit run app.py --server.port=8501 --server.address=0.0.0.0
+
+volumes:
+  bookdatabase:
