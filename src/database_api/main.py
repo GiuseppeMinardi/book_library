@@ -1,49 +1,56 @@
-import os
-from typing import Any, Generator
+from fastapi import FastAPI
 
-import psycopg
-from fastapi import Depends, FastAPI, Query
-from pgvector.psycopg import register_vector
+from src.associations import (
+    add_book_author,
+    add_book_category,
+    get_book_authors,
+    get_book_categories,
+)
+from src.authors import add_author, add_author_embedding, get_authors, update_author
+from src.books import (
+    add_book,
+    add_book_embedding,
+    get_books,
+    get_missing_books_embeddings,
+    update_book,
+)
+from src.categories import add_category, get_categories, update_category
+from src.connection import get_connection
 
 app = FastAPI()
-DB_URL = os.getenv(key="DATABASE_URL", default="postgresql://admin:secretpassword@localhost:5432/appdb")
 
-def _get_db() -> Generator(psycopg.Connection, None, None):
-    conn = psycopg.connect(DB_URL)
-    register_vector(conn)
+# Register routes at import time so they appear in OpenAPI docs
+app.add_api_route("/get_books", get_books, methods=["GET"])
+app.add_api_route("/add_book", add_book, methods=["POST"])
+app.add_api_route("/update_book/{book_id}", update_book, methods=["PUT"])
+app.add_api_route("/add_book_embedding", add_book_embedding, methods=["POST"])
+app.add_api_route("/get_authors", get_authors, methods=["GET"])
+app.add_api_route("/add_author", add_author, methods=["POST"])
+app.add_api_route("/update_author/{author_id}", update_author, methods=["PUT"])
+app.add_api_route("/add_author_embedding", add_author_embedding, methods=["POST"])
+app.add_api_route("/get_categories", get_categories, methods=["GET"])
+app.add_api_route("/add_category", add_category, methods=["POST"])
+app.add_api_route("/update_category/{category_id}", update_category, methods=["PUT"])
+app.add_api_route("/add_book_author", add_book_author, methods=["POST"])
+app.add_api_route("/add_book_category", add_book_category, methods=["POST"])
+app.add_api_route("/get_book_authors/{book_id}", get_book_authors, methods=["GET"])
+app.add_api_route(
+    "/get_book_categories/{book_id}", get_book_categories, methods=["GET"]
+)
+app.add_api_route(
+    "/missing_books_embeddings", get_missing_books_embeddings, methods=["GET"]
+)
+
+
+@app.get("/health")
+def health_check():
     try:
-        yield conn
-    finally:
-        conn.close()
-
-@app.get("/authors/")
-def get_authors(
-    # 1. authors must have a default value to be an optional query parameter
-    authors: list[str] | None = Query(default=None), 
-    # 2. Depends() MUST go in the function signature, not the body
-    conn: psycopg.Connection = Depends(_get_db) 
-) -> dict[str, dict[str, Any]]:
-    
-    with conn.cursor() as cur:
-        # 3. Separate the execution logic based on whether parameters exist
-        if not authors:
-            query = "SELECT id, name, nationality FROM authors;"
-            cur.execute(query)  # Execute WITHOUT parameters
-        else:
-            query = """
-            SELECT id, name, nationality
-            FROM authors
-            WHERE name = ANY(%s);
-            """
-            cur.execute(query, (authors,))  # Execute WITH parameters
-            
-        rows = cur.fetchall()
-        
-    return {row[1]: {"id": row[0], "nationality": row[2]} for row in rows}
-
-def main():
-    print("Hello from database-api!")
-
-
-if __name__ == "__main__":
-    main()
+        conn = get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1;")
+                return {"status": "ok"}
+        finally:
+            conn.close()
+    except Exception as e:
+        return {"status": "error", "message": str(e)}

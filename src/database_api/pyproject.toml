@@ -9,9 +9,13 @@ dependencies = []
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
+    "pytest-mock>=3.10.0",
 ]
 
 [tool.uv.workspace]
 members = [
     "src/database_api",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

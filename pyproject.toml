@@ -30,3 +30,8 @@ dev = [
     "seaborn>=0.13.2",
 ]
 
+[tool.uv.workspace]
+members = [
+    "src/agentic_filling",
+]
+

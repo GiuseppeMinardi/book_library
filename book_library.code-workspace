@@ -8,6 +8,9 @@
 		},
 		{
 			"path": "src/dashboard"
+		},
+		{
+			"path": "src/agentic_filling"
 		}
 	],
 	"settings": {
