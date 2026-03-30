@@ -61,54 +61,78 @@ def get_books(
     return books_dict
 
 
-def add_book(book: Book) -> dict[str, str | int]:
+def add_books(books: list[Book]) -> list[dict[str, str | int]]:
     """
-    Add a new book to the database.
+    Add a list of new books to the database.
 
     Args:
-        book: Book object with details to insert.
+        books: List of Book objects with details to insert.
 
     Returns
     -------
-        Dictionary with book ID and message about whether the book already exists.
-
-    Raises
-    ------
-        ValueError: If a book with the same title already exists.
+        List of dictionaries, each containing a book ID and a status message.
     """
     conn = get_connection()
+    results = []
+
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id FROM books WHERE title = %s;", (book.title,))
-            existing_book = cur.fetchone()
-            if existing_book:
-                return {"id": existing_book[0], "message": "Book already exists"}
+            for book in books:
+                # Check for existing book by title (or ISBN for better accuracy)
+                cur.execute("SELECT id FROM books WHERE title = %s;", (book.title,))
+                existing_book = cur.fetchone()
 
-            # insert the new book, id is not provided, it should be autoincremented by the database
-            cur.execute(
-                """
-                INSERT INTO books (title, publisher, published_date, description, page_count, print_type, language, info_link, small_thumbnail, isbn)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id;
-                 """,
-                params=(
-                    book.title,
-                    book.publisher,
-                    book.published_date,
-                    book.description,
-                    book.page_count,
-                    book.print_type,
-                    book.language,
-                    book.info_link,
-                    book.small_thumbnail,
-                    book.isbn,
-                ),
-            )
-            book_id = cur.fetchone()[0]
+                if existing_book:
+                    results.append(
+                        {
+                            "id": existing_book[0],
+                            "message": f"Book '{book.title}' already exists",
+                        }
+                    )
+                    continue
+
+                # Insert the new book
+                cur.execute(
+                    """
+                    INSERT INTO books (
+                        title, publisher, published_date, description, 
+                        page_count, print_type, language, info_link, 
+                        small_thumbnail, isbn
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id;
+                    """,
+                    (
+                        book.title,
+                        book.publisher,
+                        book.published_date,
+                        book.description,
+                        book.page_count,
+                        book.print_type,
+                        book.language,
+                        book.info_link,
+                        book.small_thumbnail,
+                        book.isbn,
+                    ),
+                )
+                book_id = cur.fetchone()[0]
+                results.append(
+                    {
+                        "id": book_id,
+                        "message": f"Book '{book.title}' created successfully",
+                    }
+                )
+
+            # Commit once after all books in the list are processed
             conn.commit()
-            return {"id": book_id, "message": "Book created successfully"}
+    except Exception as e:
+        conn.rollback()
+        # You might want to log the error here
+        raise e
     finally:
         conn.close()
+
+    return results
 
 
 def update_book(book_id: str, book: Book) -> dict[str, str | int]:
