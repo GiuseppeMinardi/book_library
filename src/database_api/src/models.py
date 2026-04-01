@@ -48,7 +48,7 @@ class Book(CamelModel):
         alias="smallThumbnail",
         description="URL to a small thumbnail image",
     )
-    isbn: Optional[str] = Field(
+    isbn: str = Field(
         default=None,
         description="International Standard Book Number (unique identifier)",
     )
