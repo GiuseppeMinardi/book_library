@@ -1,168 +1,98 @@
-"""Tests for the authors module."""
-
 import pytest
 
-from src.authors import (
-    get_authors,
-    add_author,
-    update_author,
-    author_exists,
-    add_author_embedding,
-)
-from src.models import Author, AuthorEmbedding
+from src.authors import add_authors, delete_authors, get_authors, update_authors
+from src.models import Author
 
 
-def test_get_authors_no_filter(mocker):
-    mock_conn = mocker.MagicMock()
-    mock_cursor = mocker.MagicMock()
-    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-    mock_cursor.fetchall.return_value = [
-        ("1", "Author1", "1990-01-01", None, "US", "M", "Bio", "http://link")
-    ]
-
-    mocker.patch("src.authors.get_connection", return_value=mock_conn)
-    result = get_authors()
-
-    assert "1" in result
-    assert result["1"].name == "Author1"
-    mock_cursor.execute.assert_called_once()
-
-
-def test_get_authors_with_filter(mocker):
-    mock_conn = mocker.MagicMock()
-    mock_cursor = mocker.MagicMock()
-    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-    mock_cursor.fetchall.return_value = [
-        ("1", "Author1", "1990-01-01", None, "US", "M", "Bio", "http://link")
-    ]
-
-    mocker.patch("src.authors.get_connection", return_value=mock_conn)
-    result = get_authors(authors_id=["1"])
-
-    assert "1" in result
-    mock_cursor.execute.assert_called()
-
-
-def test_add_author_new(mocker):
-    mock_conn = mocker.MagicMock()
-    mock_cursor = mocker.MagicMock()
-    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-    mock_cursor.fetchone.side_effect = [None, "1"]  # No existing, returned ID
-
-    author = Author(name="New Author")
-
-    mocker.patch("src.authors.get_connection", return_value=mock_conn)
-    result = add_author(author)
-
-    assert result["id"] == "1"
-    assert result["message"] == "Author created successfully"
-    mock_conn.commit.assert_called_once()
-
-
-def test_add_author_existing(mocker):
-    mock_conn = mocker.MagicMock()
-    mock_cursor = mocker.MagicMock()
-    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-    mock_cursor.fetchone.return_value = "1"  # Existing author
-
-    author = Author(name="Existing Author")
-
-    mocker.patch("src.authors.get_connection", return_value=mock_conn)
-    result = add_author(author)
-
-    assert result["id"] == "1"
-    assert result["message"] == "Author already exists"
-    mock_conn.commit.assert_not_called()
-
-
-def test_update_author_exists(mocker):
-    mock_conn = mocker.MagicMock()
-    mock_cursor = mocker.MagicMock()
-    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-    mock_cursor.fetchone.return_value = "1"  # Author exists
-
-    author = Author(name="Updated Author")
-
-    mocker.patch("src.authors.get_connection", return_value=mock_conn)
-    result = update_author("1", author)
-
-    mock_conn.commit.assert_called_once()
-
-
-def test_update_author_not_found(mocker):
-    mock_conn = mocker.MagicMock()
-    mock_cursor = mocker.MagicMock()
-    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-    mock_cursor.fetchone.return_value = None  # Author not found
-
-    author = Author(name="Updated Author")
-
-    mocker.patch("src.authors.get_connection", return_value=mock_conn)
-    result = update_author("1", author)
-
-    assert result["message"] == "Author not found"
-    mock_conn.commit.assert_not_called()
-
-
-def test_author_exists_true(mocker):
-    mock_conn = mocker.MagicMock()
-    mock_cursor = mocker.MagicMock()
-    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-    mock_cursor.fetchone.return_value = "1"
-
-    mocker.patch("src.authors.get_connection", return_value=mock_conn)
-    result = author_exists("1")
-
-    assert result is True
-
-
-def test_author_exists_false(mocker):
-    mock_conn = mocker.MagicMock()
-    mock_cursor = mocker.MagicMock()
-    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-    mock_cursor.fetchone.return_value = None
-
-    mocker.patch("src.authors.get_connection", return_value=mock_conn)
-    result = author_exists("1")
-
-    assert result is False
-
-
-def test_add_author_embedding_success(mocker):
-    mock_conn = mocker.MagicMock()
-    mock_cursor = mocker.MagicMock()
-    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-    mock_cursor.fetchone.return_value = "1"  # Author exists
-
-    embedding = AuthorEmbedding(
-        author_id="1",
-        model_name="test",
-        vector=[0.1, 0.2],
-        created_at="2023-01-01T00:00:00",
+def test_add_authors(db_session):
+    # 1. Test adding a completely NEW author
+    new_author = Author(
+        id=999,
+        name="Isaac Asimov",
+        birth_date="1920-01-02",
+        nationality="American",
+        sex="M",
+        bio="Prolific writer of science fiction.",
     )
 
-    mocker.patch("src.authors.get_connection", return_value=mock_conn)
-    result = add_author_embedding(embedding)
+    res = add_authors(authors_to_add=[new_author], conn=db_session)
+    assert len(res) == 1
+    assert res[0].status == "ok"
+    assert res[0].exists is False
 
-    assert result["message"] == "Embedding added successfully"
-    mock_conn.commit.assert_called_once()
-
-
-def test_add_author_embedding_not_found(mocker):
-    mock_conn = mocker.MagicMock()
-    mock_cursor = mocker.MagicMock()
-    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-    mock_cursor.fetchone.return_value = None  # Author not found
-
-    embedding = AuthorEmbedding(
-        author_id="1",
-        model_name="test",
-        vector=[0.1, 0.2],
-        created_at="2023-01-01T00:00:00",
+    # 2. Test the duplicate check using an author already in your DB
+    existing_author = Author(
+        id=888,
+        name="Ursula K. Le Guin",
+        birth_date="1929-10-21",
+        nationality="American",
+        sex="F",
     )
 
-    mocker.patch("src.authors.get_connection", return_value=mock_conn)
-    result = add_author_embedding(embedding)
+    res_duplicate = add_authors(authors_to_add=[existing_author], conn=db_session)
+    assert len(res_duplicate) == 1
+    assert res_duplicate[0].status == "ok"
+    assert res_duplicate[0].exists is True
 
-    assert result["message"] == "Author not found"
-    mock_conn.commit.assert_not_called()
+
+def test_get_authors(db_session):
+    # Fetch all authors by explicitly passing authors_ids=None
+    all_authors = get_authors(authors_ids=None, conn=db_session)
+
+    assert len(all_authors) >= 4  # You have at least 4 seeded authors
+
+    # Dynamically extract IDs for specific checks
+    tolkien_id = next(a.id for a in all_authors.values() if a.name == "J.R.R. Tolkien")
+    hawking_id = next(a.id for a in all_authors.values() if a.name == "Stephen Hawking")
+
+    # Test get_authors by specific IDs
+    authors_res = get_authors(
+        authors_ids=[str(tolkien_id), str(hawking_id)], conn=db_session
+    )
+
+    assert len(authors_res) == 2
+    assert str(tolkien_id) in authors_res
+    assert str(hawking_id) in authors_res
+
+
+def test_update_authors(db_session):
+    # Fetch all by explicitly passing authors_ids=None
+    all_authors = get_authors(authors_ids=None, conn=db_session)
+    isaacson = next(a for a in all_authors.values() if a.name == "Walter Isaacson")
+
+    # Update Walter Isaacson's bio
+    isaacson.bio = "Updated: Historian, biographer, and journalist."
+
+    res = update_authors(authors_to_update=[isaacson], conn=db_session)
+    assert len(res) == 1
+    assert res[0].status == "ok"
+    assert res[0].exists is True
+
+    # Verify the update actually persisted in the database
+    fetched = get_authors(authors_ids=[str(isaacson.id)], conn=db_session)
+    assert (
+        fetched[str(isaacson.id)].bio
+        == "Updated: Historian, biographer, and journalist."
+    )
+
+
+def test_delete_authors(db_session):
+    # Fetch all by explicitly passing authors_ids=None
+    all_authors = get_authors(authors_ids=None, conn=db_session)
+    hawking_id = next(a.id for a in all_authors.values() if a.name == "Stephen Hawking")
+
+    # Delete the author
+    res = delete_authors(authors_ids=[str(hawking_id)], conn=db_session)
+    assert len(res) == 1
+    assert res[0].status == "ok"
+    assert res[0].exists is True
+
+    # Try to get the deleted author
+    authors_res = get_authors(authors_ids=[str(hawking_id)], conn=db_session)
+    assert len(authors_res) == 0
+
+    # Test delete on an author ID that does not exist
+    res_missing = delete_authors(authors_ids=["999999"], conn=db_session)
+    assert len(res_missing) == 1
+    assert res_missing[0].status == "error"
+    assert res_missing[0].exists is False

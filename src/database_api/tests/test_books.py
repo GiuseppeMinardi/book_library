@@ -1,186 +1,107 @@
-"""Tests for the books module."""
-
+from pathlib import Path
 import pytest
+import json
+from src import books
+from src.models import Book
+from src.books import add_books, delete_books, get_books, update_books, delete_books
 
-from src.books import get_books, add_book, update_book, book_exists, add_book_embedding
-from src.models import Book, BookEmbedding
+def test_add_books(db_session):
+    exaples_books_path = Path(__file__).parent.joinpath("examples", "books.json")
+    with exaples_books_path.open() as f:
+        books_data = [Book(**book) for book in json.load(f)]
 
+    res = add_books(books_to_add=books_data, conn=db_session)
+    assert len(res) == len(books_data)
+    for book_res in res:
+        assert book_res.status == "ok"
+        assert book_res.exists == False
 
-def test_get_books_no_filter(mocker):
-    mock_conn = mocker.MagicMock()
-    mock_cursor = mocker.MagicMock()
-    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-    mock_cursor.fetchall.return_value = [
-        (
-            "1",
-            "Book1",
-            "Publisher",
-            "2023",
-            "Desc",
-            100,
-            "BOOK",
-            "en",
-            "http://link",
-            "thumb",
-            "1234567890",
-        )
+def test_get_books(db_session):
+    examople_books = [
+        Book(
+            id=1,
+            title="The Hobbit",
+            publisher="George Allen & Unwin",
+            published_date="1937-09-21",
+            isbn="9780007525492",
+        ),
+        Book(
+            id=2,
+            title="A Brief History of Time",
+            publisher="Bantam Books",
+            published_date="1988-04-01",
+            isbn="9780553380163",
+        ),
     ]
+    # test get books by isbs
+    isbns = [book.isbn for book in examople_books]
+    books_res = get_books(books_isbn=isbns, conn=db_session)
+    assert len(books_res) == len(examople_books)
+    for book_isbn, book in books_res.items():
+        assert book.isbn in isbns
 
-    mocker.patch("src.books.get_connection", return_value=mock_conn)
-    result = get_books()
-    assert "1" in result
-    assert result["1"].title == "Book1"
-    mock_cursor.execute.assert_called_once()
+    # test gest_books by title
+    titles = [book.title for book in examople_books]
+    books_res = get_books(books_titles=titles, conn=db_session)
+    assert len(books_res) == len(examople_books)
+    for book_title, book in books_res.items():
+        assert book.title in titles
 
-
-def test_get_books_with_filter(mocker):
-    mock_conn = mocker.MagicMock()
-    mock_cursor = mocker.MagicMock()
-    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-    mock_cursor.fetchall.return_value = [
-        (
-            "1",
-            "Book1",
-            "Publisher",
-            "2023",
-            "Desc",
-            100,
-            "BOOK",
-            "en",
-            "http://link",
-            "thumb",
-            "1234567890",
-        )
-    ]
-
-
-    mocker.patch("src.books.get_connection", return_value=mock_conn)
-    result = get_books(books_id=["1"])
-
-    assert "1" in result
-    mock_cursor.execute.assert_called()
-
-
-def test_add_book_new(mocker):
-    mock_conn = mocker.MagicMock()
-    mock_cursor = mocker.MagicMock()
-    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-    mock_cursor.fetchone.side_effect = [None, "1"]  # No existing, returned ID
-
-    book = Book(id="0", title="New Book")
-
-    mocker.patch("src.books.get_connection", return_value=mock_conn)
-    result = add_book(book)
-
-    assert result["id"] == "1"
-    assert result["message"] == "Book created successfully"
-    mock_conn.commit.assert_called_once()
-
-
-def test_add_book_existing(mocker):
-    mock_conn = mocker.MagicMock()
-    mock_cursor = mocker.MagicMock()
-    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-    mock_cursor.fetchone.return_value = "1"  # Existing book
-
-    book = Book(id="0", title="Existing Book")
-
-    mocker.patch("src.books.get_connection", return_value=mock_conn)
-    result = add_book(book)
-
-    assert result["id"] == "1"
-    assert result["message"] == "Book already exists"
-    mock_conn.commit.assert_not_called()
-
-
-def test_update_book_exists(mocker):
-    mock_conn = mocker.MagicMock()
-    mock_cursor = mocker.MagicMock()
-    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-    mock_cursor.fetchone.return_value = "1"  # Book exists
-
-    book = Book(id="0", title="Updated Book")
-
-    mocker.patch("src.books.get_connection", return_value=mock_conn)
-    result = update_book("1", book)
-
-    mock_conn.commit.assert_called_once()
-
-
-def test_update_book_not_found(mocker):
-    mock_conn = mocker.MagicMock()
-    mock_cursor = mocker.MagicMock()
-    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-    mock_cursor.fetchone.return_value = None  # Book not found
-
-    book = Book(id="0", title="Updated Book")
-
-    mocker.patch("src.books.get_connection", return_value=mock_conn)
-    result = update_book("1", book)
-
-    assert result["message"] == "Book not found"
-    mock_conn.commit.assert_not_called()
-
-
-def test_book_exists_true(mocker):
-    mock_conn = mocker.MagicMock()
-    mock_cursor = mocker.MagicMock()
-    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-    mock_cursor.fetchone.return_value = "1"
-
-    mocker.patch("src.books.get_connection", return_value=mock_conn)
-    result = book_exists("1")
-
-    assert result is True
-
-
-def test_book_exists_false(mocker):
-    mock_conn = mocker.MagicMock()
-    mock_cursor = mocker.MagicMock()
-    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-    mock_cursor.fetchone.return_value = None
-
-    mocker.patch("src.books.get_connection", return_value=mock_conn)
-    result = book_exists("1")
-
-    assert result is False
-
-
-def test_add_book_embedding_success(mocker):
-    mock_conn = mocker.MagicMock()
-    mock_cursor = mocker.MagicMock()
-    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-    mock_cursor.fetchone.return_value = "1"  # Book exists
-
-    embedding = BookEmbedding(
-        book_id="1",
-        model_name="test",
-        vector=[0.1, 0.2],
-        created_at="2023-01-01T00:00:00",
+    # test title and isbn together
+    books_res = get_books(
+        books_isbn=[examople_books[0].isbn],
+        books_titles=[examople_books[1].title],
+        conn=db_session,
     )
+    assert len(books_res) == 2
 
-    mocker.patch("src.books.get_connection", return_value=mock_conn)
-    result = add_book_embedding(embedding)
+    # test problems when nothing is passed
+    with pytest.raises(ValueError):
+        books_res = get_books(conn=db_session)
 
-    assert result["message"] == "Embedding added successfully"
-    mock_conn.commit.assert_called_once()
-
-
-def test_add_book_embedding_not_found(mocker):
-    mock_conn = mocker.MagicMock()
-    mock_cursor = mocker.MagicMock()
-    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
-    mock_cursor.fetchone.return_value = None  # Book not found
-
-    embedding = BookEmbedding(
-        book_id="1",
-        model_name="test",
-        vector=[0.1, 0.2],
-        created_at="2023-01-01T00:00:00",
+def test_update_books(db_session):
+    # add a book to update
+    book_to_add = Book(
+        id=1,
+        title="The Hobbit",
+        publisher="George Allen & Unwin",
+        published_date="1937-09-21",
+        isbn="9780007525492",
     )
+    add_books(books_to_add=[book_to_add], conn=db_session)
 
-    mocker.patch("src.books.get_connection", return_value=mock_conn)
-    result = add_book_embedding(embedding)
+    # update the book
+    updated_book = Book(
+        id=1,
+        title="The Hobbit: An Unexpected Journey",
+        publisher="George Allen & Unwin",
+        published_date="1937-09-21",
+        isbn="9780007525492",
+    )
+    res = update_books(books_to_update=[updated_book], conn=db_session)
+    assert len(res) == 1
+    assert res[0].status == "ok"
+    assert res[0].exists == True
 
-    assert result["message"] == "Book not found"
-    mock_conn.commit.assert_not_called()
+def test_delete_books(db_session):
+    # add a book to delete
+    book_to_add = Book(
+        id=1,
+        title="The Hobbit",
+        publisher="George Allen & Unwin",
+        published_date="1937-09-21",
+        isbn="9780007525492",
+    )
+    add_books(books_to_add=[book_to_add], conn=db_session)
+
+    # delete the book
+    res = delete_books(books_ids=[str(book_to_add.id)], conn=db_session)
+    assert res[0].status == "ok"
+
+    # try to get the deleted book
+    books_res = get_books(books_isbn=[book_to_add.isbn], conn=db_session)
+    assert len(books_res) == 0
+
+    # test delete on a book that does not exists
+    res = delete_books(books_ids=[str(99999)], conn=db_session)
+    assert res[0].status == "error"

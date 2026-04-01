@@ -9,32 +9,27 @@ from typing import Generator
 import psycopg
 from pgvector.psycopg import register_vector
 
-DB_URL = os.getenv(
-    key="DATABASE_URL", default="postgresql://admin:secretpassword@localhost:5432/appdb"
-)
 DB_USER = os.getenv(key="POSTGRES_USER", default="admin")
 DB_PASSWORD = os.getenv(key="POSTGRES_PASSWORD", default="secretpassword")
 DB_NAME = os.getenv(key="POSTGRES_DB", default="appdb")
-
+DB_HOST = os.getenv(key="DB_HOST", default="localhost")
+DB_PORT = os.getenv(key="DB_PORT", default="5432")
 
 def _get_db() -> Generator[psycopg.Connection, None, None]:
-    # Prefer a full DATABASE_URL when available (handles container hostnames).
-    # Fallback to individual env vars if DB_URL is not provided.
-    if DB_URL:
-        conn = psycopg.connect(DB_URL)
-    else:
-        conn = psycopg.connect(
-            host="localhost",
-            port=5432,
-            user=DB_USER,
-            password=DB_PASSWORD,
-            dbname=DB_NAME,
-        )
+    conn = psycopg.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        user=DB_USER,
+        password=DB_PASSWORD,
+        dbname=DB_NAME,
+    )
     register_vector(conn)
     try:
         yield conn
     finally:
-        conn.close()
+        # The generator is the ONLY place that should close the connection
+        if not conn.closed:
+            conn.close()
 
 
 def get_connection() -> psycopg.Connection:
@@ -45,15 +40,12 @@ def get_connection() -> psycopg.Connection:
     endpoint handlers). Use `_get_db` as a FastAPI dependency if you
     want automatic cleanup via `yield`.
     """
-    if DB_URL:
-        conn = psycopg.connect(DB_URL)
-    else:
-        conn = psycopg.connect(
-            host="localhost",
-            port=5432,
-            user=DB_USER,
-            password=DB_PASSWORD,
-            dbname=DB_NAME,
-        )
+    conn = psycopg.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        user=DB_USER,
+        password=DB_PASSWORD,
+        dbname=DB_NAME,
+    )
     register_vector(conn)
     return conn

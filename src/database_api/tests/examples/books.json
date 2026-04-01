@@ -1,0 +1,67 @@
+[
+  {
+    "id": 5,
+    "title": "Echoes of the Void",
+    "publisher": "Nebula Press",
+    "publishedDate": "2024-11-15",
+    "description": "A deep dive into the mysteries of dark matter and the expansion of the universe.",
+    "pageCount": 320,
+    "printType": "BOOK",
+    "language": "en",
+    "infoLink": "https://books.example.com/echoes-of-the-void",
+    "smallThumbnail": "https://books.example.com/thumbnails/001_small.jpg",
+    "isbn": "978-1-234567-89-0"
+  },
+  {
+    "id": 4,
+    "title": "The Culinary Alchemist",
+    "publisher": "Taste & Co.",
+    "publishedDate": "2023-05-22",
+    "description": "Discover the chemical reactions that make your favorite dishes taste extraordinary.",
+    "pageCount": 215,
+    "printType": "BOOK",
+    "language": "en",
+    "infoLink": "https://books.example.com/culinary-alchemist",
+    "smallThumbnail": "https://books.example.com/thumbnails/002_small.jpg",
+    "isbn": "978-0-987654-32-1"
+  },
+  {
+    "id": 3,
+    "title": "Urban Architecture Monthly",
+    "publisher": "Cityscape Media",
+    "publishedDate": "2026-03-01",
+    "description": "Issue #42: Focusing on sustainable skyscrapers and green roofs in Turin.",
+    "pageCount": 85,
+    "printType": "MAGAZINE",
+    "language": "it",
+    "infoLink": "https://mag.example.com/urban-architecture-42",
+    "smallThumbnail": "https://mag.example.com/thumbnails/042_small.jpg",
+    "isbn": null
+  },
+  {
+    "id": 2,
+    "title": "Silent Algorithms",
+    "publisher": "Silicon Valley Books",
+    "publishedDate": "2025-09-10",
+    "description": "An exploration of how AI is subtly shaping modern social behavior.",
+    "pageCount": 412,
+    "printType": "BOOK",
+    "language": "en",
+    "infoLink": "https://books.example.com/silent-algorithms",
+    "smallThumbnail": "https://books.example.com/thumbnails/004_small.jpg",
+    "isbn": "978-3-16-148410-0"
+  },
+  {
+    "id": 1,
+    "title": "La Storia di Amalia",
+    "publisher": "Heritage House",
+    "publishedDate": "2022-12-05",
+    "description": "A historical fiction novel set in 19th-century Italy.",
+    "pageCount": 288,
+    "printType": "BOOK",
+    "language": "it",
+    "infoLink": "https://books.example.com/storia-amalia",
+    "smallThumbnail": "https://books.example.com/thumbnails/005_small.jpg",
+    "isbn": "978-8-80987-654-3"
+  }
+]

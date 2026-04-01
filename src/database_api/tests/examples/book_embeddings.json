@@ -1,0 +1,14 @@
+[
+  {
+    "bookId": 1,
+    "modelName": "text-embedding-3-small",
+    "vector": [0.1543, -0.8765, 0.0341, 0.5521, -0.1129],
+    "createdAt": "2026-04-01T10:30:00Z"
+  },
+  {
+    "bookId": 2,
+    "modelName": "text-embedding-3-small",
+    "vector": [-0.0421, 0.9982, -0.3341, 0.1287, 0.7765],
+    "createdAt": "2026-04-01T10:32:15Z"
+  }
+]

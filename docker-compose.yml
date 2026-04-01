@@ -23,6 +23,11 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://admin:secretpassword@books_db:5432/appdb
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=secretpassword
+      - POSTGRES_DB=appdb
+      - DB_HOST=books_db
+      - DB_PORT=5432
     depends_on:
       - books_db
     # NEW: Map your local ./api folder to /app inside the container

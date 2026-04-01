@@ -22,7 +22,7 @@ class CamelModel(BaseModel):
 class Book(CamelModel):
     """Represents a book entity with metadata such as title, publisher, and identifiers."""
 
-    id: str = Field(description="Unique identifier for the book")
+    id: int = Field(description="Unique identifier for the book")
     title: str = Field(description="Title of the book")
     publisher: Optional[str] = Field(default=None, description="Publisher of the book")
     published_date: Optional[str] = Field(
@@ -57,7 +57,7 @@ class Book(CamelModel):
 class Author(CamelModel):
     """Represents an author with personal details and optional biography."""
 
-    id: str | None = Field(default=None, description="Unique identifier for the author")
+    id: int | None = Field(default=None, description="Unique identifier for the author")
     name: str = Field(description="Full name of the author")
     birth_date: Optional[date] = Field(default=None, description="Author's birth date")
     death_date: Optional[date] = Field(default=None, description="Author's death date")
@@ -76,7 +76,9 @@ class Author(CamelModel):
 class Category(CamelModel):
     """Represents a classification or genre assigned to books."""
 
-    id: str = Field(description="Unique identifier for the category")
+    id: int | None = Field(
+        default=None, description="Unique identifier for the category"
+    )
     name: str = Field(description="Category name")
 
 
@@ -105,7 +107,9 @@ class BookCategory(CamelModel):
 class BookEmbedding(CamelModel):
     """Stores vector embeddings associated with a book for a specific model."""
 
-    book_id: str = Field(alias="bookId", description="Reference to the book ID")
+    book_id: int = Field(
+        default=0, alias="bookId", description="Reference to the book ID"
+    )
     model_name: str = Field(
         alias="modelName", description="Name of the embedding model"
     )
@@ -120,7 +124,9 @@ class BookEmbedding(CamelModel):
 class AuthorEmbedding(CamelModel):
     """Stores vector embeddings associated with an author for a specific model."""
 
-    author_id: str = Field(alias="authorId", description="Reference to the author ID")
+    author_id: int = Field(
+        default=0, alias="authorId", description="Reference to the author ID"
+    )
     model_name: str = Field(
         alias="modelName", description="Name of the embedding model"
     )
