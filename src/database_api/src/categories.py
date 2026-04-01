@@ -24,8 +24,8 @@ class CategoryResponse(BaseModel):
 
 def get_categories_ids(
     category_names: list[str] | None = Query(default=None),  # noqa: B008
-    conn=Depends(_get_db),  # noqa: B008
-):
+    conn=Depends(dependency=_get_db),  # noqa: B008
+) -> dict[str, int]:
     """
     Retrieve category IDs from the database based on category names.
 
@@ -40,14 +40,69 @@ def get_categories_ids(
     with conn.cursor() as cur:
         if category_names:
             query = """
-            SELECT id FROM categories WHERE name = ANY(%s);
+            SELECT id, name FROM categories WHERE LOWER(name) = ANY(%s);
             """
-            cur.execute(query, (category_names,))
+            cur.execute(query, ([name.lower() for name in category_names],))
         else:
-            query = "SELECT id FROM categories;"
+            query = "SELECT id, name FROM categories;"
             cur.execute(query)
-        category_ids = [row[0] for row in cur.fetchall()]
+        output = cur.fetchall()
+    category_ids: dict[str, int] = {row[1]: row[0] for row in output}
     return category_ids
+
+def add_category(
+    category_name: str,
+    conn=Depends(dependency=_get_db),  # noqa: B008
+) -> CategoryResponse:
+    """
+    Add a new category to the database.
+
+    Args:
+        category_name: Name of the category to add.
+        conn: Database connection.
+
+    Returns
+    -------
+        CategoryResponse object containing details about the added category and operation status.
+    """
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id FROM categories WHERE LOWER(name) = %s;",
+                (category_name.lower(),),
+            )
+            existing_category = cur.fetchone()
+            if existing_category:
+                return CategoryResponse(
+                    id=existing_category[0],
+                    message="Category already exists",
+                    exists=True,
+                    status="ok",
+                )
+
+            cur.execute(
+                """
+                INSERT INTO categories (name)
+                VALUES (%s)
+                RETURNING id;
+                """,
+                params=(category_name,),
+            )
+            category_id = cur.fetchone()[0]
+            conn.commit()
+            return CategoryResponse(
+                id=category_id,
+                message="Category created successfully",
+                exists=False,
+                status="ok",
+            )
+    except Exception as e:
+        return CategoryResponse(
+            id=-1,
+            message=f"Error adding category: {str(e)}",
+            exists=False,
+            status="error",
+        )
 
 
 # def get_categories(
