@@ -4,7 +4,13 @@ import pytest
 import json
 from src import books
 from src.models import BookEmbedding
-from src.books_embeddings import add_books_embedding, delete_book_embedding, get_embeddings_by_book, delete_book_embedding
+from src.books_embeddings import (
+    add_books_embedding,
+    delete_book_embedding,
+    get_embeddings_by_book,
+    delete_book_embedding,
+    get_incomplete_books,
+)
 
 
 
@@ -61,3 +67,19 @@ def test_delete_book_embedding(db_session):
     retrieved_after_deletion = get_embeddings_by_book(books_id=[999], model_name="test-model", conn=db_session)
     assert len(retrieved_after_deletion) == 1
     assert retrieved_after_deletion[0].status == "error"
+
+
+def test_get_incomplete_books(db_session):
+    from src.books import add_books, Book
+
+    books = [
+        Book(id=0, isbn="pinco", title="pippo"),
+        Book(id=0, isbn="pallo", title="pluto"),
+    ]
+
+    add_books(books_to_add=books, conn=db_session)
+
+    res = get_incomplete_books(conn=db_session)
+
+    for book in books:
+        assert book.isbn in [a.isbn for a in res]

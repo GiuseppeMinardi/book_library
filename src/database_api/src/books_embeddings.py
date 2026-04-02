@@ -5,7 +5,7 @@ from fastapi import Body, Depends
 from pydantic import BaseModel, Field
 
 from .connection import _get_db
-from .models import BookEmbedding
+from .models import Book, BookEmbedding
 
 
 class BookEmbeddingResponse(BaseModel):
@@ -135,3 +135,30 @@ def delete_book_embedding(
                 modelName=model_name,
                 message="No embedding found to delete for this book and model",
             )
+
+
+def get_incomplete_books(conn=Depends(_get_db())) -> list[Book]:
+    with conn.cursor() as cur:
+        query = """
+        SELECT id, title, publisher, published_date, description, page_count, print_type, language, info_link, small_thumbnail, isbn
+        FROM books
+        WHERE id NOT IN (SELECT book_id FROM book_embeddings)
+        """
+        cur.execute(query)
+        rows = cur.fetchall()
+        return [
+            Book(
+                id=row[0],
+                title=row[1],
+                publisher=row[2],
+                published_date=row[3],
+                description=row[4],
+                page_count=row[5],
+                print_type=row[6],
+                language=row[7],
+                info_link=row[8],
+                small_thumbnail=row[9],
+                isbn=row[10],
+            )
+            for row in rows
+        ]

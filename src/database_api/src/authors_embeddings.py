@@ -5,7 +5,7 @@ from fastapi import Body, Depends
 from pydantic import BaseModel, Field
 
 from .connection import _get_db
-from .models import AuthorEmbedding
+from .models import Author, AuthorEmbedding
 
 
 class AuthorEmbeddingResponse(BaseModel):
@@ -151,3 +151,27 @@ def delete_author_embedding(
                 modelName=model_name,
                 message="No embedding found to delete for this author and model",
             )
+
+
+def get_incomplete_authors(conn=Depends(_get_db())) -> list[Author]:
+    with conn.cursor() as cur:
+        query = """
+        SELECT id, name, birth_date, death_date, nationality, sex, bio, author_link 
+        FROM authors
+        WHERE id NOT IN (SELECT author_id FROM author_embeddings)
+        """
+        cur.execute(query)
+        rows = cur.fetchall()
+        return [
+            Author(
+                id=str(row[0]),
+                name=row[1],
+                birth_date=row[2],
+                death_date=row[3],
+                nationality=row[4],
+                sex=row[5],
+                bio=row[6],
+                author_link=row[7],
+            )
+            for row in rows
+        ]

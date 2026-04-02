@@ -2,9 +2,14 @@ import numpy as np
 from pathlib import Path
 import pytest
 import json
-from src import books
+from src import authors, books
 from src.models import AuthorEmbedding
-from src.authors_embeddings import add_authors_embedding, get_embeddings_by_author, delete_author_embedding
+from src.authors_embeddings import (
+    add_authors_embedding,
+    get_embeddings_by_author,
+    delete_author_embedding,
+    get_incomplete_authors,
+)
 
 
 
@@ -62,3 +67,19 @@ def test_delete_author_embedding(db_session):
     retrieved_after_deletion = get_embeddings_by_author(authors_id=[1], model_name="test-model", conn=db_session)
     assert len(retrieved_after_deletion) == 1
     assert retrieved_after_deletion[0].status == "error"
+
+
+def test_get_incomplete_authors(db_session):
+    from src.authors import add_authors, Author
+
+    authors = [
+        Author(id=0, name="pinco"),
+        Author(id=0, name="pallo"),
+    ]
+
+    add_authors(authors_to_add=authors, conn=db_session)
+
+    res = get_incomplete_authors(conn=db_session)
+
+    for author in authors:
+        assert author.name in [a.name for a in res]

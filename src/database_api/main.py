@@ -1,22 +1,31 @@
 from fastapi import FastAPI, HTTPException
 
-from src import associations_router, authors_router, books_router, categories_router
+from src import (
+    author_embedding_router,
+    authors_router,
+    book_authors_router,
+    book_categories_router,
+    book_embedding_router,
+    books_router,
+)
 
 app = FastAPI()
 
-app.include_router(associations_router)
-app.include_router(authors_router)
 app.include_router(books_router)
-app.include_router(categories_router)
+app.include_router(authors_router)
+app.include_router(author_embedding_router)
+app.include_router(book_embedding_router)
+app.include_router(book_categories_router)
+app.include_router(book_authors_router)
 
 # Register routes at import time so they appear in OpenAPI docs
 
 
-@app.get("/")
+@app.get(path="/")
 def root():
     return {"message": "Welcome to the Book Library API!"}
 
-@app.get("/health")
+@app.get(path="/health")
 def health_check():
     """Health check endpoint to verify database connectivity."""
     from src.connection import get_connection
