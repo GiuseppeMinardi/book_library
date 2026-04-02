@@ -68,8 +68,8 @@ def add_books(
                         book.page_count,
                         book.print_type,
                         book.language,
-                        book.info_link,
-                        book.small_thumbnail,
+                        str(book.info_link),
+                        str(book.small_thumbnail),
                         book.isbn,
                     ),
                 )

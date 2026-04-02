@@ -7,13 +7,17 @@ categories, and their relationships, with support for camelCase serialization.
 from datetime import date, datetime
 from typing import List, Optional
 
-from pydantic import AnyUrl, BaseModel, ConfigDict, Field
+from pydantic import AnyUrl, BaseModel, ConfigDict, Field, HttpUrl
+from pydantic.alias_generators import to_camel
 
 
 class CamelModel(BaseModel):
-    """Base model configured to support alias-based serialization (camelCase output)."""
+    """Base model configured to support alias-based serialization (camelCase)."""
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(
+        populate_by_name=True,
+        alias_generator=to_camel,
+    )
 
 
 # --- Core tables ---
@@ -24,31 +28,27 @@ class Book(CamelModel):
 
     id: int = Field(description="Unique identifier for the book")
     title: str = Field(description="Title of the book")
-    publisher: Optional[str] = Field(default=None, description="Publisher of the book")
-    published_date: Optional[str] = Field(
+    publisher: str | None = Field(default=None, description="Publisher of the book")
+    published_date: str | None = Field(
         default=None,
-        alias="publishedDate",
         description="Publication date (kept as string due to varying formats)",
     )
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None, description="Book description or summary"
     )
-    page_count: Optional[int] = Field(
-        default=None, alias="pageCount", description="Number of pages"
+    page_count: int | None = Field(default=None, description="Number of pages")
+    print_type: str | None = Field(
+        default=None, description="Print type (e.g., BOOK, MAGAZINE)"
     )
-    print_type: Optional[str] = Field(
-        default=None, alias="printType", description="Print type (e.g., BOOK, MAGAZINE)"
+    language: str | None = Field(default=None, description="Language of the book")
+    info_link: HttpUrl | None = Field(
+        default=None, description="External information link"
     )
-    language: Optional[str] = Field(default=None, description="Language of the book")
-    info_link: Optional[str] = Field(
-        default=None, alias="infoLink", description="External information link"
-    )
-    small_thumbnail: Optional[str] = Field(
+    small_thumbnail: HttpUrl | None = Field(
         default=None,
-        alias="smallThumbnail",
         description="URL to a small thumbnail image",
     )
-    isbn: str = Field(
+    isbn: str | None = Field(
         default=None,
         description="International Standard Book Number (unique identifier)",
     )
